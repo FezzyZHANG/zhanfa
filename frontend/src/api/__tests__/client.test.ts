@@ -35,6 +35,7 @@ import {
   submitBacktest,
   fetchBacktestResults,
   fetchBacktestResult,
+  fetchIndustryComparison,
 } from '@/api/client';
 
 beforeEach(() => {
@@ -145,6 +146,36 @@ describe('fetchFinancials', () => {
   });
 });
 
+// ── Industry Comparison ────────────────────────────
+
+describe('fetchIndustryComparison', () => {
+  const mockPeers = [
+    { code: '600519', name: '贵州茅台', roe: 0.294, gross_margin: 0.918, debt_ratio: 0.192, revenue_growth: 0.138, net_profit_growth: 0.144 },
+    { code: '000858', name: '五粮液', roe: 0.238, gross_margin: 0.752, debt_ratio: 0.201, revenue_growth: 0.117, net_profit_growth: 0.122 },
+  ];
+
+  it('calls GET /stocks/industry/:industry/comparison', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { industry: '白酒', peers: mockPeers },
+    });
+    const result = await fetchIndustryComparison('白酒');
+    expect(mockGet).toHaveBeenCalledWith('/stocks/industry/%E7%99%BD%E9%85%92/comparison');
+    expect(result).toEqual({ industry: '白酒', peers: mockPeers });
+  });
+
+  it('URL-encodes industry name with special characters', async () => {
+    mockGet.mockResolvedValueOnce({ data: { industry: '医 药', peers: [] } });
+    await fetchIndustryComparison('医 药');
+    expect(mockGet).toHaveBeenCalledWith('/stocks/industry/%E5%8C%BB%20%E8%8D%AF/comparison');
+  });
+
+  it('handles empty peers array', async () => {
+    mockGet.mockResolvedValueOnce({ data: { industry: '未知行业', peers: [] } });
+    const result = await fetchIndustryComparison('未知行业');
+    expect(result).toEqual({ industry: '未知行业', peers: [] });
+  });
+});
+
 // ── Watchlists ──────────────────────────────────────
 
 describe('fetchWatchlists', () => {
@@ -222,6 +253,51 @@ describe('fetchBacktestResults', () => {
       status: 'done',
       metrics: expect.objectContaining({ total_return: 0.15, sharpe: 1.2, max_drawdown: -0.1 }),
     });
+  });
+
+  it('calls /strategies/:id/results when strategyId is provided', async () => {
+    mockGet.mockResolvedValueOnce({ data: [] });
+    const result = await fetchBacktestResults(1);
+    expect(mockGet).toHaveBeenCalledWith('/strategies/1/results');
+    expect(result).toEqual([]);
+  });
+
+  it('maps strategy results preserving strategy_id', async () => {
+    const strategyResult = {
+      id: 'abc123',
+      db_id: 42,
+      strategy_id: 1,
+      stock_codes: ['000001'],
+      params: { period: 20 },
+      start_date: '2024-01-01',
+      end_date: '2024-06-30',
+      metrics: { total_return: 0.15, sharpe: 1.2, max_drawdown: -0.1 },
+      equity_curve: [{ date: '2024-01-02', value: 1.0 }, { date: '2024-01-03', value: 1.01 }],
+      drawdown_curve: [{ date: '2024-01-02', value: 0 }, { date: '2024-01-03', value: -0.005 }],
+      benchmark_curve: null,
+      yearly_returns: [{ year: 2024, value: 0.15 }],
+      monthly_returns: [{ year: 2024, month: 1, value: 0.02 }],
+      trades: [{ date: '2024-01-10', action: 'buy', price: 10.5, quantity: 100, pnl: 0 }],
+      status: 'completed',
+      created_at: '2024-01-01T00:00:00',
+    };
+    mockGet.mockResolvedValueOnce({ data: [strategyResult] });
+    const result = await fetchBacktestResults(1);
+    expect(result).toHaveLength(1);
+    const bt = result[0];
+    expect(bt.id).toBe('abc123');
+    expect(bt.strategy_id).toBe(1);
+    expect(bt.stock_codes).toEqual(['000001']);
+    expect(bt.params).toEqual({ period: 20 });
+    expect(bt.start_date).toBe('2024-01-01');
+    expect(bt.end_date).toBe('2024-06-30');
+    expect(bt.metrics).toMatchObject({ total_return: 0.15, sharpe: 1.2, max_drawdown: -0.1 });
+    expect(bt.equity_curve).toEqual([{ date: '2024-01-02', value: 1.0 }, { date: '2024-01-03', value: 1.01 }]);
+    expect(bt.drawdown_curve).toEqual([{ date: '2024-01-02', value: 0 }, { date: '2024-01-03', value: -0.005 }]);
+    expect(bt.yearly_returns).toEqual([{ year: 2024, value: 0.15 }]);
+    expect(bt.monthly_returns).toEqual([{ year: 2024, month: 1, value: 0.02 }]);
+    expect(bt.trades).toEqual([{ date: '2024-01-10', action: 'buy', price: 10.5, quantity: 100, pnl: 0 }]);
+    expect(bt.status).toBe('done');
   });
 });
 

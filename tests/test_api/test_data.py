@@ -178,6 +178,87 @@ def test_refresh_handles_failure(client):
     assert data["errors"][0]["code"] == "bad_code"
 
 
+def test_refresh_minute_15_calls_fetcher_minute(client):
+    """freq=minute_15 should call Fetcher.minute(code, period='15')."""
+    mock_fetcher = MagicMock()
+    mock_fetcher.minute.return_value = pd.DataFrame({"close": [10.0, 11.0]})
+
+    with patch("zhanfa.automation.workflows.Fetcher", return_value=mock_fetcher):
+        r = client.post(
+            "/api/data/refresh",
+            json={"codes": ["000001"], "freq": "minute_15", "force": False},
+        )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["updated"] == 1
+    assert data["failed"] == 0
+    mock_fetcher.minute.assert_called_once_with("000001", period="15")
+
+
+def test_refresh_minute_60_calls_fetcher_minute(client):
+    """freq=minute_60 should call Fetcher.minute(code, period='60')."""
+    mock_fetcher = MagicMock()
+    mock_fetcher.minute.return_value = pd.DataFrame({"close": [5.0]})
+
+    with patch("zhanfa.automation.workflows.Fetcher", return_value=mock_fetcher):
+        r = client.post(
+            "/api/data/refresh",
+            json={"codes": ["600519"], "freq": "minute_60", "force": False},
+        )
+    assert r.status_code == 200
+    assert r.json()["updated"] == 1
+    mock_fetcher.minute.assert_called_once_with("600519", period="60")
+
+
+def test_refresh_minute_force_deletes_and_fetches_target_freq(client):
+    """Force refresh with minute_30 should delete minute_30 cache and re-fetch."""
+    from zhanfa.data.store import Store
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        (base / "minute_30").mkdir()
+        dates = pd.date_range("2024-01-01", periods=5, freq="h")
+        df = pd.DataFrame({"close": 1.0}, index=dates)
+        df.to_parquet(base / "minute_30" / "000001.parquet", index=True)
+
+        mock_fetcher = MagicMock()
+        mock_fetcher.minute.return_value = pd.DataFrame({"close": [20.0, 21.0]})
+
+        real_store = Store(str(tmp))
+        # Verify cache exists before refresh
+        assert real_store.exists("000001", "minute_30")
+
+        with patch("zhanfa.api.routers.data.Store", return_value=real_store):
+            with patch(
+                "zhanfa.automation.workflows.Fetcher", return_value=mock_fetcher
+            ):
+                r = client.post(
+                    "/api/data/refresh",
+                    json={"codes": ["000001"], "freq": "minute_30", "force": True},
+                )
+            assert r.status_code == 200
+            data = r.json()
+            assert data["updated"] == 1
+
+            # Cache should be deleted (force) and then re-fetched
+            mock_fetcher.minute.assert_called_once_with("000001", period="30")
+            # daily() should NOT be called
+            mock_fetcher.daily.assert_not_called()
+
+
+def test_refresh_invalid_freq_returns_400(client):
+    """Unknown freq should return 400 with a clear error message."""
+    r = client.post(
+        "/api/data/refresh",
+        json={"codes": ["000001"], "freq": "weekly", "force": False},
+    )
+    assert r.status_code == 400
+    detail = r.json()["detail"]
+    assert "未知频率" in detail
+    assert "weekly" in detail
+
+
+
 # ── OpenAPI ──────────────────────────────────────────────
 
 

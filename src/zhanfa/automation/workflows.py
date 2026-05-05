@@ -76,6 +76,40 @@ def update_daily_data(
     }
 
 
+def update_minute_data(codes: list[str], period: str) -> dict:
+    """分钟级数据刷新：为指定股票拉取分钟线并缓存。
+
+    Args:
+        codes: 股票代码列表。
+        period: "15" | "30" | "60"
+
+    Returns:
+        {"updated": int, "failed": int, "new_discovered": 0, "details": {...}}
+    """
+    fetcher = Fetcher()
+
+    updated = 0
+    failed = 0
+    details: dict[str, int] = {}
+
+    for code in codes:
+        try:
+            df = fetcher.minute(code, period=period)
+            details[code] = len(df)
+            updated += 1
+        except Exception as e:
+            logger.error(f"更新分钟 {code} (period={period}) 失败: {e}")
+            details[code] = -1
+            failed += 1
+
+    return {
+        "updated": updated,
+        "failed": failed,
+        "new_discovered": 0,
+        "details": details,
+    }
+
+
 def weekly_index_rebalance(index_code: str = "000300") -> dict:
     """每周指数调仓：对比新旧成分股，记录变更并更新缓存。
 

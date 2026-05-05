@@ -113,6 +113,7 @@ class BacktestResult(Base):
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(32))  # API-level UUID for lookups across restarts
     strategy_id = Column(Integer, ForeignKey("strategies.id"))
     stock_codes = Column(JSON, nullable=False)  # ["000001","600519"]
     params = Column(JSON, nullable=False)  # 回测参数快照

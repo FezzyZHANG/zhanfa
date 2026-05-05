@@ -176,6 +176,16 @@ curl http://127.0.0.1:8000/api/backtest/history
 
 回测在后台线程异步执行（`BackgroundTasks` + `run_in_executor`），不阻塞 HTTP 请求。提交后立即返回 `task_id`，前端轮询 `GET /api/backtest/{task_id}` 获取结果。
 
+### 回测持久化
+
+回测结果持久化到 `backtest_results` 表，服务重启后历史记录不丢失：
+
+- **提交时**：创建 `status="pending"` 的 DB 记录，关联 `strategy_id` 和 `task_id`
+- **完成后**：写入 `metrics`、`equity_curve`、`drawdown_curve`、`yearly_returns`、`monthly_returns`、`trades`，`status="completed"`
+- **失败时**：写入 `status="failed"` 和错误摘要
+- **查询时**：`/api/backtest/history` 合并内存任务（pending/running）和 DB 记录（completed/failed），内存任务优先
+- `/api/strategies/{id}/results` 自动联动，显示该策略的所有持久化回测结果，包含完整曲线和交易数据
+
 完成后的响应包含标量指标和时序数据：
 
 ```json

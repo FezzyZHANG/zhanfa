@@ -187,6 +187,45 @@ def test_backtest_not_found(client):
     assert r.status_code == 404
 
 
+def test_backtest_submit_creates_db_record(client):
+    """After submitting a backtest, a pending DB record exists and shows in history."""
+    r = client.post("/api/backtest/run", json={
+        "code": "000001",
+        "strategy": "sma_cross",
+        "start_date": "20240101",
+        "end_date": "20250101",
+    })
+    assert r.status_code == 200
+    task = r.json()
+    task_id = task["task_id"]
+
+    # History should include this task from the service
+    r = client.get("/api/backtest/history")
+    assert r.status_code == 200
+    history = r.json()
+    assert any(h["task_id"] == task_id for h in history)
+
+
+def test_strategy_results_link_to_backtests(client):
+    """Strategy detail page shows backtest_count and results endpoint lists them."""
+    # Get a strategy
+    r = client.get("/api/strategies")
+    strategies = r.json()
+    strategy_id = strategies[0]["id"]
+
+    # Initially, results should be a list (possibly empty)
+    r = client.get(f"/api/strategies/{strategy_id}/results")
+    assert r.status_code == 200
+    results = r.json()
+    assert isinstance(results, list)
+
+    # Strategy detail includes backtest_count
+    r = client.get(f"/api/strategies/{strategy_id}")
+    assert r.status_code == 200
+    detail = r.json()
+    assert "backtest_count" in detail
+
+
 # ── Scheduler ─────────────────────────────────────────
 
 def test_scheduler_status(client):

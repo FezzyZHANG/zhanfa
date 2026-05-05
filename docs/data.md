@@ -216,7 +216,7 @@ K 线行情数据保留在 parquet 中（数据量大），结构化数据（策
 | `stock_financial` | 财报数据缓存，按 `(code, report_date)` 唯一 |
 | `watchlists` | 自选股分组 |
 | `watchlist_items` | 自选股明细，级联删除 |
-| `backtest_results` | 回测结果，含参数快照、指标 JSON、Markdown 报告 |
+| `backtest_results` | 回测结果，含参数快照、指标 JSON、净值/回撤/交易时序数据、Markdown 报告、task_id 全局标识 |
 
 ### 数据库迁移
 
@@ -291,19 +291,21 @@ session.close()
 
 ```json
 {
-    "codes": ["000001", "600519"],  // null = 全部已缓存股票
-    "freq": "daily",
-    "force": false,                  // true = 强制删除缓存后重拉
-    "discover_new": true,            // 自动发现新上市股票
-    "max_new": 50
+    “codes”: [“000001”, “600519”],  // null = 全部已缓存股票
+    “freq”: “daily”,                // daily | minute_60 | minute_30 | minute_15
+    “force”: false,                 // true = 强制删除缓存后重拉
+    “discover_new”: true,           // 自动发现新上市股票（仅 daily 有效）
+    “max_new”: 50                   // 仅 daily 有效
 }
 ```
 
-返回 `{"updated": 2, "failed": 0, "new_discovered": 3, "errors": []}`。
+返回 `{“updated”: 2, “failed”: 0, “new_discovered”: 3, “errors”: []}`。
 
-默认 `discover_new=true` 时，刷新流程会先拉取全 A 股列表并同步写入 `stocks` 表，然后再发现并拉取未缓存股票的日线数据。因此空库首次点击“抓取至今”后，自选股添加所需的股票元信息会自动补齐。
+默认 `discover_new=true` 时，刷新流程会先拉取全 A 股列表并同步写入 `stocks` 表，然后再发现并拉取未缓存股票的日线数据。因此空库首次点击”抓取至今”后，自选股添加所需的股票元信息会自动补齐。
 
-`force=true` 时先删除对应 parquet 文件再拉取，确保数据刷新。
+`force=true` 时先删除目标频率对应的 parquet 文件再拉取，确保数据刷新。
+
+`freq` 为分钟级（`minute_60`/`minute_30`/`minute_15`）时，刷新调用 `Fetcher.minute(code, period=…)` 拉取对应周期的分钟线数据。未知 `freq` 值返回 400。
 
 ### 自选股与股票元信息
 

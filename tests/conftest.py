@@ -68,9 +68,12 @@ def client(monkeypatch):
     )
     TestingSessionLocal = sessionmaker(bind=engine)
 
+    from zhanfa.api.services import backtest_service
+
     monkeypatch.setattr(db_base, "engine", engine)
     monkeypatch.setattr(db_base, "SessionLocal", TestingSessionLocal)
     monkeypatch.setattr(strategy_service, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(backtest_service, "SessionLocal", TestingSessionLocal)
     monkeypatch.setattr(data_router, "SessionLocal", TestingSessionLocal)
     monkeypatch.setattr(import_data, "SessionLocal", TestingSessionLocal)
     monkeypatch.setattr(register_module, "SessionLocal", TestingSessionLocal)

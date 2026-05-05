@@ -23,7 +23,7 @@ export function FinancialPanel({ code }: FinancialPanelProps) {
     useFinancialData(code);
   const { data: stocks } = useStocks();
   const stock = stocks?.find((s) => s.code === code);
-  const { data: comparison } = useIndustryComparison(stock?.industry ?? '');
+  const { data: comparison, isError: comparisonError } = useIndustryComparison(stock?.industry ?? '');
 
   const filteredData = sortedData.filter((d) => {
     const year = parseInt(d.report_date.split('-')[0]);
@@ -130,7 +130,11 @@ export function FinancialPanel({ code }: FinancialPanelProps) {
             <CardTitle>行业对比</CardTitle>
           </CardHeader>
           <CardContent>
-            {comparison && comparison.peers.length > 0 ? (
+            {comparisonError ? (
+              <p className="text-center text-muted-foreground py-12 text-sm">
+                行业对比数据加载失败
+              </p>
+            ) : comparison && comparison.peers.length > 0 ? (
               <IndustryRadar
                 stockName={stock?.name ?? code}
                 peers={comparison.peers}

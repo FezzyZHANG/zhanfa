@@ -129,8 +129,10 @@ export async function fetchFinancials(code: string): Promise<FinancialData[]> {
 
 export async function fetchIndustryComparison(industry: string): Promise<IndustryComparison | undefined> {
   if (USE_MOCK) return delay(mockIndustryComparison[industry]);
-  // No backend endpoint yet (TICKET-012)
-  return undefined;
+  const { data } = await api.get<IndustryComparison>(
+    `/stocks/industry/${encodeURIComponent(industry)}/comparison`
+  );
+  return data;
 }
 
 // ── Watchlists ──────────────────────────────────────
@@ -361,6 +363,62 @@ function taskToResult(task: BackendBacktestResult): BacktestResult {
   };
 }
 
+interface StrategyBacktestResult {
+  id: string;
+  db_id: number;
+  strategy_id: number;
+  stock_codes: string[];
+  params: Record<string, unknown>;
+  start_date: string;
+  end_date: string;
+  metrics: Record<string, number> | null;
+  equity_curve: { date: string; value: number }[] | null;
+  drawdown_curve: { date: string; value: number }[] | null;
+  benchmark_curve: { date: string; value: number }[] | null;
+  yearly_returns: { year: number; value: number }[] | null;
+  monthly_returns: { year: number; month: number; value: number }[] | null;
+  trades: { date: string; action: string; price: number; quantity: number; pnl?: number }[] | null;
+  status: string;
+  created_at: string;
+}
+
+function strategyResultToBacktestResult(item: StrategyBacktestResult): BacktestResult {
+  const m = item.metrics || {};
+  return {
+    id: item.id,
+    strategy_id: item.strategy_id,
+    stock_codes: item.stock_codes || [],
+    params: item.params || {},
+    start_date: item.start_date || '',
+    end_date: item.end_date || '',
+    metrics: {
+      total_return: m.total_return ?? 0,
+      ann_return: m.ann_return ?? 0,
+      ann_volatility: m.ann_volatility ?? 0,
+      sharpe: m.sharpe ?? 0,
+      sortino: m.sortino ?? 0,
+      max_drawdown: m.max_drawdown ?? 0,
+      calmar: m.calmar ?? 0,
+      win_rate: m.win_rate ?? 0,
+      years: m.years ?? 0,
+    },
+    equity_curve: item.equity_curve ?? [],
+    drawdown_curve: item.drawdown_curve ?? [],
+    benchmark_curve: item.benchmark_curve ?? undefined,
+    yearly_returns: item.yearly_returns ?? [],
+    monthly_returns: item.monthly_returns ?? [],
+    trades: (item.trades ?? []).map((t) => ({
+      date: t.date,
+      action: t.action as 'buy' | 'sell',
+      price: t.price,
+      quantity: t.quantity,
+      pnl: t.pnl,
+    })),
+    status: mapBacktestStatus(item.status),
+    created_at: item.created_at || '',
+  };
+}
+
 export async function fetchBacktestResults(
   strategyId?: number
 ): Promise<BacktestResult[]> {
@@ -370,6 +428,10 @@ export async function fetchBacktestResults(
         ? mockBacktestResults.filter((r) => r.strategy_id === strategyId)
         : mockBacktestResults
     );
+  }
+  if (strategyId !== undefined) {
+    const { data } = await api.get<StrategyBacktestResult[]>(`/strategies/${strategyId}/results`);
+    return (data ?? []).map(strategyResultToBacktestResult);
   }
   const { data } = await api.get<BacktestHistoryItem[]>('/backtest/history');
   return (data ?? []).map(historyItemToResult);

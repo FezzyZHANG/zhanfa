@@ -180,13 +180,20 @@ def _strategy_to_dict(row: Strategy) -> dict[str, Any]:
 
 def _backtest_to_dict(row: BacktestResult) -> dict[str, Any]:
     return {
-        "id": row.id,
+        "id": row.task_id if row.task_id else str(row.id),
+        "db_id": row.id,
         "strategy_id": row.strategy_id,
         "stock_codes": row.stock_codes or [],
         "params": row.params or {},
         "start_date": row.start_date.isoformat() if row.start_date else "",
         "end_date": row.end_date.isoformat() if row.end_date else "",
         "metrics": row.metrics or {},
+        "equity_curve": row.equity_curve or [],
+        "drawdown_curve": row.drawdown_curve or [],
+        "benchmark_curve": row.benchmark_curve,
+        "yearly_returns": row.yearly_returns or [],
+        "monthly_returns": row.monthly_returns or [],
+        "trades": row.trades or [],
         "status": row.status,
         "created_at": row.created_at.isoformat() if row.created_at else "",
     }

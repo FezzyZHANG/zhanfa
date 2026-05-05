@@ -16,7 +16,7 @@ from zhanfa.api.models import (
     RefreshError,
     StockDataStatus,
 )
-from zhanfa.automation.workflows import update_daily_data
+from zhanfa.automation.workflows import update_daily_data, update_minute_data
 from zhanfa.data.fetcher import Fetcher
 from zhanfa.data.store import Store
 from zhanfa.db.base import SessionLocal
@@ -139,22 +139,40 @@ def get_stock_status(code: str = Query(...)):
     return result
 
 
+_VALID_FREQ = frozenset({"daily", "minute_60", "minute_30", "minute_15"})
+
+
 @router.post("/refresh", response_model=RefreshResult)
 def refresh(body: RefreshRequest):
+    if body.freq not in _VALID_FREQ:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=400,
+            content={"detail": f"未知频率: {body.freq}，有效值: {sorted(_VALID_FREQ)}"},
+        )
+
     store = Store()
+    codes = body.codes
 
     if body.force:
-        codes = body.codes or store.codes(body.freq)
+        codes = codes or store.codes(body.freq)
         for c in codes:
             store.delete(c, body.freq)
-        # 清除缓存后拉取（force 时绕过发现，直接拉指定 codes）
-        result = update_daily_data(codes=codes, discover_new=False, max_new=0)
+
+    if body.freq == "daily":
+        if body.force:
+            result = update_daily_data(codes=codes, discover_new=False, max_new=0)
+        else:
+            result = update_daily_data(
+                codes=body.codes,
+                discover_new=body.discover_new,
+                max_new=body.max_new,
+            )
     else:
-        result = update_daily_data(
-            codes=body.codes,
-            discover_new=body.discover_new,
-            max_new=body.max_new,
-        )
+        # minute_60 → "60", minute_30 → "30", minute_15 → "15"
+        period = body.freq.split("_")[1]
+        codes = codes or store.codes(body.freq)
+        result = update_minute_data(codes=codes, period=period)
 
     errors = []
     details = result.get("details", {})
