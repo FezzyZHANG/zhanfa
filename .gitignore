@@ -13,6 +13,7 @@ wheels/
 # data files
 *.db*
 *.parquet
+alembic/versions/
 
 # Env files
 .env
