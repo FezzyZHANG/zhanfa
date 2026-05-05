@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: oklch(0.985 0 0);
+  --color-foreground: oklch(0.145 0 0);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.145 0 0);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.145 0 0);
+  --color-primary: oklch(0.205 0.042 265.755);
+  --color-primary-foreground: oklch(0.985 0 0);
+  --color-secondary: oklch(0.965 0.001 286.375);
+  --color-secondary-foreground: oklch(0.205 0.042 265.755);
+  --color-muted: oklch(0.965 0.001 286.375);
+  --color-muted-foreground: oklch(0.556 0.015 286.067);
+  --color-accent: oklch(0.965 0.001 286.375);
+  --color-accent-foreground: oklch(0.205 0.042 265.755);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-destructive-foreground: oklch(0.985 0 0);
+  --color-border: oklch(0.922 0.004 286.32);
+  --color-input: oklch(0.922 0.004 286.32);
+  --color-ring: oklch(0.205 0.042 265.755);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+  }
+}
+
+/* ── GitHub-style markdown ── */
+.markdown-body {
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  color: var(--color-foreground);
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-foreground);
+}
+
+.markdown-h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.markdown-h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.markdown-body h3 { font-size: 1.25em; }
+.markdown-body h4 { font-size: 1em; }
+
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: var(--color-foreground);
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-left: 2em;
+  color: var(--color-foreground);
+}
+
+.markdown-body li {
+  margin-bottom: 0.25em;
+  color: var(--color-foreground);
+}
+
+.markdown-body li + li {
+  margin-top: 0.25em;
+}
+
+.markdown-blockquote {
+  margin: 0 0 16px;
+  padding: 0 1em;
+  color: var(--color-muted-foreground);
+  border-left: 4px solid var(--color-border);
+  background: var(--color-muted);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-link {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.markdown-link:hover {
+  text-decoration: underline;
+}
+
+/* Table */
+.markdown-table-wrapper {
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.markdown-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.markdown-table th {
+  padding: 8px 13px;
+  font-weight: 600;
+  text-align: left;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+}
+
+.markdown-table td {
+  padding: 8px 13px;
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+}
+
+.markdown-table tr:nth-child(even) td {
+  background: var(--color-muted);
+}
+
+/* Inline code */
+.markdown-inline-code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-foreground);
+  white-space: break-spaces;
+}
+
+/* Code block */
+.markdown-code-block {
+  position: relative;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-muted);
+}
+
+.markdown-code-lang {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  text-transform: uppercase;
+}
+
+.markdown-code {
+  display: block;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 85%;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.45;
+  color: var(--color-foreground);
+  white-space: pre;
+  tab-size: 2;
+}
+
+.markdown-hr {
+  height: 1px;
+  padding: 0;
+  margin: 24px 0;
+  background: var(--color-border);
+  border: 0;
+}
+
+.markdown-img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  margin: 8px 0;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.markdown-body del {
+  color: var(--color-muted-foreground);
+}
+
+/* Dark mode overrides — keep link blue legible */
+@media (prefers-color-scheme: dark) {
+  .markdown-link {
+    color: #58a6ff;
+  }
+}

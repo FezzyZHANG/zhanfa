@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*/.ipynb_checkpoints
+
+# Virtual environments
+.venv
+
+# data files
+*.db*
+*.parquet
+
+# Env files
+.env
+
+# Node
+node_modules/
+
+# Cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Claude Code
+.claude/
+AGENTS.md
+
+# Keep locals
+developer/tickets/

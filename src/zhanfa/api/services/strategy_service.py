@@ -1,0 +1,192 @@
+"""Strategy service — database-backed strategy CRUD."""
+
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
+from zhanfa.db.base import SessionLocal
+from zhanfa.db.models import Strategy, BacktestResult
+from zhanfa.strategies.base import BaseStrategy
+
+
+def list_strategies(
+    category: str | None = None,
+    search: str | None = None,
+) -> list[dict[str, Any]]:
+    session = SessionLocal()
+    try:
+        q = session.query(Strategy)
+        if category:
+            q = q.filter(Strategy.category == category)
+        if search:
+            pattern = f"%{search}%"
+            q = q.filter(
+                (Strategy.name.ilike(pattern)) |
+                (Strategy.description.ilike(pattern))
+            )
+        rows = q.order_by(Strategy.id).all()
+        return [_strategy_to_dict(r) for r in rows]
+    finally:
+        session.close()
+
+
+def get_strategy(strategy_id: int) -> dict[str, Any] | None:
+    session = SessionLocal()
+    try:
+        row = session.query(Strategy).filter_by(id=strategy_id).first()
+        if row is None:
+            return None
+        return _strategy_to_dict(row)
+    finally:
+        session.close()
+
+
+def get_strategy_results(strategy_id: int) -> list[dict[str, Any]]:
+    session = SessionLocal()
+    try:
+        rows = (
+            session.query(BacktestResult)
+            .filter_by(strategy_id=strategy_id)
+            .order_by(BacktestResult.created_at.desc())
+            .all()
+        )
+        return [_backtest_to_dict(r) for r in rows]
+    finally:
+        session.close()
+
+
+def create_strategy(
+    name: str,
+    category: str,
+    description: str = "",
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    session = SessionLocal()
+    try:
+        row = Strategy(
+            name=name,
+            category=category,
+            description=description,
+            params=params or {},
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _strategy_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def update_strategy(strategy_id: int, params: dict[str, Any]) -> dict[str, Any] | None:
+    session = SessionLocal()
+    try:
+        row = session.query(Strategy).filter_by(id=strategy_id).first()
+        if row is None:
+            return None
+        row.params = params
+        session.commit()
+        session.refresh(row)
+        return _strategy_to_dict(row)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def create_strategy_instance(
+    strategy_key: str, params: dict[str, Any] | None = None
+) -> BaseStrategy:
+    """Instantiate a strategy class by name or DB code_ref.
+
+    Tries DB lookup first (by name or code_ref suffix), falls back to
+    direct import via the old hardcoded registry.
+    """
+    code_ref = _resolve_code_ref(strategy_key)
+
+    if code_ref:
+        module_path, class_name = code_ref.rsplit(".", 1)
+        mod = importlib.import_module(module_path)
+        cls = getattr(mod, class_name)
+        return cls(**(params or {}))
+
+    raise ValueError(f"Unknown strategy: {strategy_key}")
+
+
+def _resolve_code_ref(key: str) -> str | None:
+    """Resolve a strategy key to a code_ref (module.ClassName)."""
+    session = SessionLocal()
+    try:
+        # Try exact match on name or code_ref
+        row = (
+            session.query(Strategy)
+            .filter((Strategy.name == key) | (Strategy.code_ref == key))
+            .first()
+        )
+        if row and row.code_ref:
+            return row.code_ref
+
+        # Try suffix match on code_ref (e.g. "sma_cross" matches "...SMACross")
+        if not row:
+            row = (
+                session.query(Strategy)
+                .filter(Strategy.code_ref.endswith(f".{key}"))
+                .first()
+            )
+        if row and row.code_ref:
+            return row.code_ref
+    finally:
+        session.close()
+
+    # Fallback for when DB isn't populated yet
+    from zhanfa.strategies.trend.sma_cross import SMACross
+    from zhanfa.strategies.trend.turtle import Turtle
+    from zhanfa.strategies.momentum.rsi_strategy import RSIStrategy
+    from zhanfa.strategies.momentum.macd_strategy import MACDStrategy
+    from zhanfa.strategies.fundamental.low_pe_strategy import LowPEStrategy
+    from zhanfa.strategies.fundamental.peg_strategy import PEGStrategy
+    from zhanfa.strategies.composite.trend_fundamental import TrendFundamental
+    from zhanfa.strategies.composite.momentum_lowvol import MomentumLowVol
+
+    _fallback: dict[str, str] = {
+        "sma_cross": "zhanfa.strategies.trend.sma_cross.SMACross",
+        "turtle": "zhanfa.strategies.trend.turtle.Turtle",
+        "rsi": "zhanfa.strategies.momentum.rsi_strategy.RSIStrategy",
+        "macd": "zhanfa.strategies.momentum.macd_strategy.MACDStrategy",
+        "low_pe": "zhanfa.strategies.fundamental.low_pe_strategy.LowPEStrategy",
+        "peg": "zhanfa.strategies.fundamental.peg_strategy.PEGStrategy",
+        "trend_fundamental": "zhanfa.strategies.composite.trend_fundamental.TrendFundamental",
+        "momentum_lowvol": "zhanfa.strategies.composite.momentum_lowvol.MomentumLowVol",
+    }
+    return _fallback.get(key)
+
+
+def _strategy_to_dict(row: Strategy) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "category": row.category,
+        "description": row.description or "",
+        "params": row.params or {},
+        "code_ref": row.code_ref,
+        "created_at": row.created_at.isoformat() if row.created_at else "",
+        "updated_at": row.updated_at.isoformat() if row.updated_at else "",
+    }
+
+
+def _backtest_to_dict(row: BacktestResult) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "strategy_id": row.strategy_id,
+        "stock_codes": row.stock_codes or [],
+        "params": row.params or {},
+        "start_date": row.start_date.isoformat() if row.start_date else "",
+        "end_date": row.end_date.isoformat() if row.end_date else "",
+        "metrics": row.metrics or {},
+        "status": row.status,
+        "created_at": row.created_at.isoformat() if row.created_at else "",
+    }

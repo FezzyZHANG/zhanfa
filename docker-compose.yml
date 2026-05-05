@@ -1,0 +1,45 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://zhanfa:zhanfa@db:5432/zhanfa
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CORS_ORIGINS=http://localhost
+      - DATA_DIR=/app/data
+    volumes:
+      - data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: zhanfa
+      POSTGRES_PASSWORD: zhanfa
+      POSTGRES_DB: zhanfa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zhanfa"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data:
+  pgdata:
