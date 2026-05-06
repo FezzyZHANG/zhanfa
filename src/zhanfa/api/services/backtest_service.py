@@ -7,10 +7,10 @@ persisted to backtest_results table so they survive restarts.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import date, datetime, timezone
 
-import pandas as pd
 
 from zhanfa.data import Fetcher
 from zhanfa.data.pipeline import Pipeline
@@ -20,6 +20,8 @@ from zhanfa.backtest.metrics import compute_metrics
 from zhanfa.api.services.strategy_service import create_strategy_instance
 from zhanfa.db.base import SessionLocal
 from zhanfa.db.models import BacktestResult, Strategy
+
+logger = logging.getLogger(__name__)
 
 _tasks: dict[str, dict] = {}
 
@@ -79,6 +81,10 @@ def _create_db_record(task_id: str, request: dict, strategy_id: int | None) -> B
         return record
     except Exception:
         session.rollback()
+        logger.exception(
+            "Failed to create backtest db record: task_id=%s strategy_id=%s code=%s",
+            task_id, strategy_id, request.get("code"),
+        )
         return None
     finally:
         session.close()
@@ -89,12 +95,17 @@ def _update_db_record(db_id: int, updates: dict) -> None:
     try:
         row = session.query(BacktestResult).filter_by(id=db_id).first()
         if row is None:
+            logger.warning("Cannot update backtest db record: db_id=%s not found", db_id)
             return
         for key, value in updates.items():
             setattr(row, key, value)
         session.commit()
     except Exception:
         session.rollback()
+        logger.exception(
+            "Failed to update backtest db record: db_id=%s fields=%s",
+            db_id, list(updates.keys()),
+        )
     finally:
         session.close()
 
@@ -105,6 +116,11 @@ def submit_backtest(request: dict) -> str:
 
     strategy_id = _resolve_strategy_id(request)
     db_record = _create_db_record(task_id, request, strategy_id)
+    if db_record is None:
+        logger.warning(
+            "Backtest task %s will run without DB persistence: strategy_id=%s code=%s",
+            task_id, strategy_id, request.get("code"),
+        )
 
     _tasks[task_id] = {
         "task_id": task_id,
@@ -157,6 +173,10 @@ async def run_backtest_async(task_id: str) -> None:
                 "status": "completed",
             })
     except Exception as e:
+        logger.exception(
+            "Backtest execution failed: task_id=%s strategy=%s code=%s",
+            task_id, req.get("strategy"), req.get("code"),
+        )
         task["status"] = "failed"
         task["error"] = str(e)
 
