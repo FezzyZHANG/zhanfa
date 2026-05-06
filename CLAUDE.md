@@ -32,5 +32,6 @@
 - 显式说明未完成或使用占位符的接口或内容，并生成新工单
 - 使用`developer/debug-notes.md`读取和写入此项目较为特殊的技术卡点
 - When building React components, always include jsdom-compatible test setup with mocks for browser-only APIs (canvas, ResizeObserver, etc.) before writing tests.
-- nWhen implementing data pipeline or backend features, always create end-to-end/page-level tests that exercise the full stack (not just unit tests). Verify field names match between frontend display keys and backend response shapes.
+- When implementing data pipeline or backend features, always create end-to-end/page-level tests that exercise the full stack (not just unit tests). Verify field names match between frontend display keys and backend response shapes.
+- 修复 GitHub CI workflow fail 时，必须先读取 `.github/workflows/ci.yml`，再在本地按失败 job 的同一命令顺序复现和验证；前端 CI 修复必须包含 `npm run lint`，后端 CI 修复必须包含 `uv run ruff check src/`、`uv run mypy src/` 和 `uv run pytest -v`
 - 使用 git 管理工单：每个开发型 ticket 使用独立分支，分支名、提交信息、PR 标题必须包含 `TICKET-xxx`；开工、交付和取消时同步更新 `developer/README.md` 与对应 `developer/tickets/TICKET-*.md`

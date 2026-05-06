@@ -3,8 +3,26 @@ repos:
     rev: v0.4.0
     hooks:
       - id: ruff
+        files: ^src/
       - id: ruff-format
+        files: ^src/
+        stages: [manual]
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:
       - id: prettier
+        files: ^(\.github/.*\.ya?ml|\.pre-commit-config\.yaml|frontend/package(-lock)?\.json|frontend/tsconfig.*\.json)$
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (uv)
+        entry: uv run mypy src/
+        language: system
+        pass_filenames: false
+        stages: [manual]
+      - id: frontend-lint
+        name: frontend lint (npm)
+        entry: python -c "import subprocess, sys; sys.exit(subprocess.call('npm run lint', cwd='frontend', shell=True))"
+        language: system
+        pass_filenames: false
+        stages: [manual]

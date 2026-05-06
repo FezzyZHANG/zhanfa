@@ -48,11 +48,11 @@
 
 | 改动类型 | 必跑 |
 |----------|------|
-| 后端 service/API | 相关定向 pytest + `uv run pytest -q` |
-| 数据库/初始化 | `tests/test_db` + 相关 API/service 测试 |
+| 后端 service/API | 相关定向 pytest + `uv run ruff check src/` + `uv run mypy src/` + `uv run pytest -v` |
+| 数据库/初始化 | `tests/test_db` + 相关 API/service 测试 + backend CI 对齐命令 |
 | 回测/策略 | `tests/test_backtest` 或对应 strategy 测试 |
-| 前端页面/API client | `npm run test` + `npm run build` |
-| 图表/交互 | 前端测试 + 构建 + 浏览器手验 |
+| 前端页面/API client | `npm run lint` + `npm run test` + `npm run build` |
+| 图表/交互 | `npm run lint` + 前端测试 + 构建 + 浏览器手验 |
 | 纯文档 | 链接、命令、路径检查 |
 
 ### 3. 工单管理
@@ -89,7 +89,11 @@
 - ...
 
 验证：
-- `uv run pytest -q` -> passed
+- `uv run ruff check src/` -> passed
+- `uv run mypy src/` -> passed
+- `uv run pytest -v` -> passed
+- `cd frontend && npm run lint` -> passed
+- `cd frontend && npm run test` -> passed
 - `cd frontend && npm run build` -> passed
 
 未覆盖/残余风险：

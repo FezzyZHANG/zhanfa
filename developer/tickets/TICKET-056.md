@@ -1,7 +1,7 @@
 # TICKET-056: pre-commit 补齐本地类型与前端质量门禁
 
 **优先级:** P4 - 低
-**状态:** 🔨 进行中
+**状态:** ✅ 已完成
 **依赖:** -
 **预计工时:** 0.5d
 
@@ -39,8 +39,8 @@ cd frontend && npm run lint
 
 本工单选择 manual stage：
 
-- `pre-commit run mypy --all-files --hook-stage manual`
-- `pre-commit run frontend-lint --all-files --hook-stage manual`
+- `uv run pre-commit run mypy --all-files --hook-stage manual`
+- `uv run pre-commit run frontend-lint --all-files --hook-stage manual`
 
 原因：`mypy` 与前端 lint 都是全项目检查，放入默认 commit stage 会明显拖慢纯文档或小改提交；manual stage 保留本地一键复现能力，并与 CI 修复流程配套。
 
@@ -59,17 +59,21 @@ cd frontend && npm run lint
 
 ## 验收标准
 
-- [ ] pre-commit 能在本地运行 Python 类型检查或明确提供 manual stage
-- [ ] pre-commit 能运行前端 lint 或明确提供 manual stage
-- [ ] 不显著拖慢普通文档/小改提交
+- [x] pre-commit 能在本地运行 Python 类型检查或明确提供 manual stage
+- [x] pre-commit 能运行前端 lint 或明确提供 manual stage
+- [x] 不显著拖慢普通文档/小改提交
 - [x] 开发者规范明确 CI 修复必须复刻 `.github/workflows/ci.yml` 的失败 job 命令
 - [x] 前端开发规范明确 `npm run lint` 不能被 `npm run build` 替代
 - [x] 后端开发规范明确 `ruff`、`mypy`、`pytest -v` 都属于 CI 修复收尾门禁
-- [ ] `pre-commit run --all-files` 可通过
+- [x] `pre-commit run --all-files` 可通过
 
 ## 验证记录
 
-- 待补充
+- `uv run pre-commit validate-config` → passed
+- `uv run pre-commit run --all-files` → passed
+- `uv run pre-commit run mypy --all-files --hook-stage manual` → passed
+- `uv run pre-commit run frontend-lint --all-files --hook-stage manual` → passed
+- `cd frontend && npm run test -- DataPage.test.tsx` → 8 passed；仍有既有 React `act(...)` warning
 
 ## 来源
 
