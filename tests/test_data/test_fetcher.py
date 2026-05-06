@@ -44,7 +44,6 @@ class TestFetcherInit:
 
 
 class TestFetcherDaily:
-    @pytest.mark.skip(reason="max_age TTL feature under active development")
     def test_returns_cached_when_available(self, mock_store):
         cached = pd.DataFrame({"close": [10, 11]}, index=pd.date_range("2024-01-01", periods=2))
         mock_store.load.return_value = cached
@@ -90,7 +89,31 @@ class TestFetcherIndexComponents:
         mock_store.load.assert_called_once_with("components_000300", "meta", max_age=f.ttl_index_components)
 
 
+class TestFetcherIndexDaily:
+    def test_returns_cached_when_available(self, mock_store):
+        """Index daily cache hit returns cached data with correct max_age."""
+        cached = pd.DataFrame({"close": [3000, 3010]}, index=pd.date_range("2024-01-01", periods=2))
+        mock_store.load.return_value = cached
+        f = Fetcher(store=mock_store)
+        result = f.index_daily("000300")
+        pd.testing.assert_frame_equal(result, cached)
+        mock_store.load.assert_called_once_with("000300", "index_daily", max_age=f.ttl_index_daily)
+
+
 class TestFetcherStockList:
+    def test_returns_cached_when_available(self, mock_store):
+        """Stock list cache hit returns cached data with correct max_age."""
+        # Needs >= 5000 rows to pass truncation check
+        cached = pd.DataFrame({
+            "code": [f"{i:06d}" for i in range(5000)],
+            "name": [f"Stock{i}" for i in range(5000)],
+        })
+        mock_store.load.return_value = cached
+        f = Fetcher(store=mock_store)
+        result = f.stock_list()
+        pd.testing.assert_frame_equal(result, cached)
+        mock_store.load.assert_called_once_with("stock_list", "meta", max_age=f.ttl_stock_list)
+
     @patch("akshare.stock_info_a_code_name")
     def test_returns_df_with_code_name(self, mock_api, mock_store):
         mock_api.return_value = pd.DataFrame({
@@ -101,6 +124,17 @@ class TestFetcherStockList:
         f = Fetcher(store=mock_store)
         result = f.stock_list()
         assert list(result.columns) == ["code", "name"]
+
+
+class TestFetcherFinancial:
+    def test_returns_cached_when_available(self, mock_store):
+        """Financial cache hit returns cached data with correct max_age."""
+        cached = pd.DataFrame({"net_profit": [100, 200]}, index=[0, 1])
+        mock_store.load.return_value = cached
+        f = Fetcher(store=mock_store)
+        result = f.financial("000001")
+        pd.testing.assert_frame_equal(result, cached)
+        mock_store.load.assert_called_once_with("000001", "financial", max_age=f.ttl_financial)
 
 
 class TestFetcherCleanOHLCV:
@@ -195,7 +229,6 @@ class TestFetcherMinute:
         assert args[0][0] == "000001"
         assert args[0][2] == "minute_60"
 
-    @pytest.mark.skip(reason="max_age TTL feature under active development")
     def test_minute_returns_cached(self, mock_store):
         cached = pd.DataFrame(
             {"close": [10, 11]},
