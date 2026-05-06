@@ -90,6 +90,7 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 | [055]  | Docker 前端等待后端健康后再暴露服务 | P3 - 低 | 📋 待开始 | - |
 | [056]  | pre-commit 补齐本地类型与前端质量门禁 | P4 - 低 | 📋 待开始 | - |
 | [057]  | 补齐发布清单与环境变量文档 | P4 - 低 | 📋 待开始 | - |
+| [058]  | 修复 CI lint 错误（后端 ruff + 前端 ESLint） | P1 - 高 | 📋 待开始 | - |
 | [042a] | 恢复 max_age TTL 缓存命中测试 | P2 - 中 | 📋 待开始 | 041 |
 
 ## 状态说明
@@ -157,4 +158,5 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 [055]: tickets/TICKET-055.md
 [056]: tickets/TICKET-056.md
 [057]: tickets/TICKET-057.md
+[058]: tickets/TICKET-058.md
 [042a]: tickets/TICKET-042a.md
