@@ -41,12 +41,13 @@ def get_stock_meta(code: str) -> dict | None:
     try:
         from zhanfa.db.base import SessionLocal
         from zhanfa.db.models import Stock as StockModel
+
         with SessionLocal() as s:
             db_stock = s.query(StockModel).filter(StockModel.code == str(code)).first()
             if db_stock:
-                result["exchange"] = db_stock.exchange
-                result["industry"] = db_stock.industry
-                result["market_cap"] = db_stock.market_cap
+                result["exchange"] = db_stock.exchange  # type: ignore[assignment]
+                result["industry"] = db_stock.industry  # type: ignore[assignment]
+                result["market_cap"] = db_stock.market_cap  # type: ignore[assignment]
                 if db_stock.listed_date:
                     result["listed_date"] = db_stock.listed_date.isoformat()
     except Exception:
@@ -56,14 +57,16 @@ def get_stock_meta(code: str) -> dict | None:
         fin = fetcher.financial(code)
         if not fin.empty:
             latest = fin.iloc[-1]
-            result["latest_financial"] = _serialize_financial_row(latest)
+            result["latest_financial"] = _serialize_financial_row(latest)  # type: ignore[assignment]
     except Exception:
         result["latest_financial"] = None
 
     return result
 
 
-def get_daily(code: str, start: str = "20100101", end: str = "21000101", freq: str = "daily") -> dict:
+def get_daily(
+    code: str, start: str = "20100101", end: str = "21000101", freq: str = "daily"
+) -> dict:
     fetcher = Fetcher()
     if freq in ("60min", "30min", "15min", "1h"):
         period = "60" if freq == "1h" else freq.replace("min", "")
@@ -102,19 +105,35 @@ def get_indicators(code: str, start: str = "20100101", end: str = "21000101") ->
     data = []
     for idx, row in tail.iterrows():
         date_val = idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
-        data.append({
-            "date": date_val,
-            "sma_20": _nan_to_none(row.get("sma_20")),
-            "sma_60": _nan_to_none(row.get("sma_60")),
-            "sma_120": _nan_to_none(row.get("sma_120")),
-            "macd_dif": _nan_to_none(macd_df.loc[idx, "dif"]) if idx in macd_df.index else None,
-            "macd_dea": _nan_to_none(macd_df.loc[idx, "dea"]) if idx in macd_df.index else None,
-            "macd_bar": _nan_to_none(macd_df.loc[idx, "bar"]) if idx in macd_df.index else None,
-            "rsi_14": _nan_to_none(rsi_series.loc[idx]) if idx in rsi_series.index else None,
-            "boll_upper": _nan_to_none(boll_df.loc[idx, "upper"]) if idx in boll_df.index else None,
-            "boll_mid": _nan_to_none(boll_df.loc[idx, "mid"]) if idx in boll_df.index else None,
-            "boll_lower": _nan_to_none(boll_df.loc[idx, "lower"]) if idx in boll_df.index else None,
-        })
+        data.append(
+            {
+                "date": date_val,
+                "sma_20": _nan_to_none(row.get("sma_20")),
+                "sma_60": _nan_to_none(row.get("sma_60")),
+                "sma_120": _nan_to_none(row.get("sma_120")),
+                "macd_dif": _nan_to_none(macd_df.loc[idx, "dif"])  # type: ignore[index]
+                if idx in macd_df.index
+                else None,
+                "macd_dea": _nan_to_none(macd_df.loc[idx, "dea"])  # type: ignore[index]
+                if idx in macd_df.index
+                else None,
+                "macd_bar": _nan_to_none(macd_df.loc[idx, "bar"])  # type: ignore[index]
+                if idx in macd_df.index
+                else None,
+                "rsi_14": _nan_to_none(rsi_series.loc[idx])  # type: ignore[call-overload]
+                if idx in rsi_series.index
+                else None,
+                "boll_upper": _nan_to_none(boll_df.loc[idx, "upper"])  # type: ignore[index]
+                if idx in boll_df.index
+                else None,
+                "boll_mid": _nan_to_none(boll_df.loc[idx, "mid"])  # type: ignore[index]
+                if idx in boll_df.index
+                else None,
+                "boll_lower": _nan_to_none(boll_df.loc[idx, "lower"])  # type: ignore[index]
+                if idx in boll_df.index
+                else None,
+            }
+        )
 
     return {"code": code, "count": len(data), "data": data}
 
@@ -129,7 +148,15 @@ def get_industry_comparison(industry: str) -> dict:
     for _, row in stocks.iterrows():
         code = str(row["code"])
         name = str(row.get("name", ""))
-        peer = {"code": code, "name": name, "roe": 0, "gross_margin": 0, "debt_ratio": 0, "revenue_growth": 0, "net_profit_growth": 0}
+        peer = {
+            "code": code,
+            "name": name,
+            "roe": 0,
+            "gross_margin": 0,
+            "debt_ratio": 0,
+            "revenue_growth": 0,
+            "net_profit_growth": 0,
+        }
         try:
             fin = fetcher.financial(code)
             if not fin.empty and len(fin) >= 2:
@@ -173,21 +200,31 @@ def _serialize_ohlcv(code: str, df: pd.DataFrame) -> dict:
     data = []
     for idx, row in df.iterrows():
         date_val = idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx
-        data.append({
-            "date": date_val,
-            "open": float(row["open"]),
-            "high": float(row["high"]),
-            "low": float(row["low"]),
-            "close": float(row["close"]),
-            "volume": float(row["volume"]),
-            "amount": float(row.get("amount")) if "amount" in row and not pd.isna(row["amount"]) else None,
-        })
+        data.append(
+            {
+                "date": date_val,
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": float(row["volume"]),
+                "amount": float(row.get("amount"))  # type: ignore[arg-type]
+                if "amount" in row and not pd.isna(row["amount"])
+                else None,
+            }
+        )
     return {"code": code, "count": len(data), "data": data}
 
 
 def _serialize_financial_row(row) -> dict:
     idx = row.name if hasattr(row, "name") else None
-    report_date = idx.date() if hasattr(idx, "date") else str(idx)
+    report_date: str
+    if hasattr(idx, "date"):
+        report_date = idx.date().isoformat()  # type: ignore[union-attr]
+    elif idx is not None:
+        report_date = str(idx)
+    else:
+        report_date = ""
     return {
         "report_date": report_date,
         "net_profit": _nan_to_none(row.get("net_profit")),

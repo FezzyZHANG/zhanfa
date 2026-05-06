@@ -14,16 +14,22 @@ from zhanfa.strategies.base import BaseStrategy
 
 def _extract_params_from_cls(cls: type) -> dict[str, dict[str, Any]]:
     """Extract parameter metadata from a strategy class __init__ signature and docstring."""
-    sig = inspect.signature(cls.__init__)
+    sig = inspect.signature(cls.__init__)  # type: ignore[misc]
     doc = cls.__doc__ or ""
 
     params: dict[str, dict[str, Any]] = {}
     for name, param in sig.parameters.items():
         if name == "self":
             continue
-        annotation = param.annotation if param.annotation is not inspect.Parameter.empty else None
+        annotation = (
+            param.annotation
+            if param.annotation is not inspect.Parameter.empty
+            else None
+        )
         param_type = _annotation_to_str(annotation)
-        default = param.default if param.default is not inspect.Parameter.empty else None
+        default = (
+            param.default if param.default is not inspect.Parameter.empty else None
+        )
         desc = _extract_param_desc(doc, name)
         params[name] = {"type": param_type, "default": default, "description": desc}
     return params
@@ -113,10 +119,12 @@ def _register_strategy(cls, session) -> None:
         existing.updated_at = datetime.now()
         return
 
-    session.add(Strategy(
-        name=name,
-        category=category,
-        description=description,
-        params=params,
-        code_ref=code_ref,
-    ))
+    session.add(
+        Strategy(
+            name=name,
+            category=category,
+            description=description,
+            params=params,
+            code_ref=code_ref,
+        )
+    )

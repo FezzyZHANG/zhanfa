@@ -49,7 +49,13 @@ class Fetcher:
 
     # ── 日线行情 ──────────────────────────────
 
-    def daily(self, code: str, start: str = "20100101", end: str = "21000101", adjust: str = "qfq") -> pd.DataFrame:
+    def daily(
+        self,
+        code: str,
+        start: str = "20100101",
+        end: str = "21000101",
+        adjust: str = "qfq",
+    ) -> pd.DataFrame:
         """获取单只股票日线（前复权），优先读缓存，超出 TTL 或坏缓存自动刷新"""
         cached = self.store.load(code, "daily", max_age=self.ttl_daily)
         if cached is not None and len(cached) >= 1:
@@ -58,12 +64,21 @@ class Fetcher:
             self.store.delete(code, "daily")  # 坏缓存删除后重新拉取
 
         import akshare as ak
-        df = ak.stock_zh_a_hist(symbol=code, period="daily", start_date=start, end_date=end, adjust=adjust)
+
+        df = ak.stock_zh_a_hist(
+            symbol=code, period="daily", start_date=start, end_date=end, adjust=adjust
+        )
         df = self._clean_ohlcv(df)
         self.store.save(code, df, "daily")
         return df
 
-    def daily_batch(self, codes: list[str], start: str = "20100101", end: str = "21000101", adjust: str = "qfq") -> dict[str, pd.DataFrame]:
+    def daily_batch(
+        self,
+        codes: list[str],
+        start: str = "20100101",
+        end: str = "21000101",
+        adjust: str = "qfq",
+    ) -> dict[str, pd.DataFrame]:
         """批量获取日线"""
         result = {}
         for code in codes:
@@ -72,24 +87,36 @@ class Fetcher:
 
     # ── 指数行情 ─────────────────────────────
 
-    def index_daily(self, code: str, start: str = "20100101", end: str = "21000101") -> pd.DataFrame:
+    def index_daily(
+        self, code: str, start: str = "20100101", end: str = "21000101"
+    ) -> pd.DataFrame:
         """获取指数日线（如 000300 沪深300）"""
         cached = self.store.load(code, "index_daily", max_age=self.ttl_index_daily)
         if cached is not None:
             return cached
 
         import akshare as ak
-        raw = ak.stock_zh_index_daily(symbol=f"sh{code}" if code.startswith("000") else f"sz{code}")
+
+        raw = ak.stock_zh_index_daily(
+            symbol=f"sh{code}" if code.startswith("000") else f"sz{code}"
+        )
 
         # akshare 不同版本返回中/英列名，统一映射为英文
         name_map = {
-            "日期": "date", "date": "date",
-            "开盘": "open", "open": "open",
-            "最高": "high", "high": "high",
-            "最低": "low", "low": "low",
-            "收盘": "close", "close": "close",
-            "成交量": "volume", "volume": "volume",
-            "成交额": "amount", "amount": "amount",
+            "日期": "date",
+            "date": "date",
+            "开盘": "open",
+            "open": "open",
+            "最高": "high",
+            "high": "high",
+            "最低": "low",
+            "low": "low",
+            "收盘": "close",
+            "close": "close",
+            "成交量": "volume",
+            "volume": "volume",
+            "成交额": "amount",
+            "amount": "amount",
         }
         df = raw.rename(columns={k: v for k, v in name_map.items() if k in raw.columns})
         if "date" in df.columns:
@@ -97,7 +124,7 @@ class Fetcher:
             df = df.set_index("date")
             df.index.name = None
         df = df.sort_index()
-        df = df.loc[start:end]
+        df = df.loc[start:end]  # type: ignore[misc]
         self.store.save(code, df, "index_daily")
         return df
 
@@ -111,6 +138,7 @@ class Fetcher:
             return cached["code"].tolist()
 
         import akshare as ak
+
         df = ak.index_stock_cons_csindex(symbol=index_code)
         codes = df["成分券代码"].tolist()
         self.store.save(cache_key, pd.DataFrame({"code": codes}), "meta")
@@ -125,6 +153,7 @@ class Fetcher:
             self.store.delete("stock_list", "meta")  # 截断坏缓存删除后重新拉取
 
         import akshare as ak
+
         df = ak.stock_info_a_code_name()
         df.columns = ["code", "name"]
         df["code"] = df["code"].astype(str).str.strip().str.zfill(6)
@@ -140,6 +169,7 @@ class Fetcher:
             return cached
 
         import akshare as ak
+
         raw = ak.stock_financial_abstract_ths(symbol=code, indicator="按报告期")
         df = self._clean_financial(raw)
         self.store.save(code, df, "financial")
@@ -149,7 +179,9 @@ class Fetcher:
 
     # ── 分钟级行情 ───────────────────────────
 
-    def minute(self, code: str, period: str = "60", adjust: str = "qfq") -> pd.DataFrame:
+    def minute(
+        self, code: str, period: str = "60", adjust: str = "qfq"
+    ) -> pd.DataFrame:
         """获取单只股票分钟级数据（15min/30min/1h 等），优先读缓存"""
         freq = f"minute_{period}"
         cached = self.store.load(code, freq, max_age=self.ttl_minute)
@@ -157,13 +189,16 @@ class Fetcher:
             return cached
 
         import akshare as ak
+
         sina_code = self._to_sina_code(code)
         df = ak.stock_zh_a_minute(symbol=sina_code, period=period, adjust=adjust)
         df = self._clean_minute(df)
         self.store.save(code, df, freq)
         return df
 
-    def minute_batch(self, codes: list[str], period: str = "60", adjust: str = "qfq") -> dict[str, pd.DataFrame]:
+    def minute_batch(
+        self, codes: list[str], period: str = "60", adjust: str = "qfq"
+    ) -> dict[str, pd.DataFrame]:
         """批量获取分钟级数据"""
         result = {}
         for code in codes:
@@ -204,8 +239,12 @@ class Fetcher:
     def _clean_minute(df: pd.DataFrame) -> pd.DataFrame:
         """标准化 stock_zh_a_minute 返回的分钟线 DataFrame"""
         column_map = {
-            "day": "date", "open": "open", "high": "high",
-            "low": "low", "close": "close", "volume": "volume",
+            "day": "date",
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
             "amount": "amount",
         }
         df = df.rename(columns={k: v for k, v in column_map.items() if k in df.columns})
@@ -223,9 +262,14 @@ class Fetcher:
     def _clean_ohlcv(self, df: pd.DataFrame) -> pd.DataFrame:
         """将 akshare 返回的日线 DataFrame 标准化为 OHLCV 格式"""
         column_map = {
-            "日期": "date", "开盘": "open", "最高": "high",
-            "最低": "low", "收盘": "close", "成交量": "volume",
-            "成交额": "amount", "换手率": "turnover",
+            "日期": "date",
+            "开盘": "open",
+            "最高": "high",
+            "最低": "low",
+            "收盘": "close",
+            "成交量": "volume",
+            "成交额": "amount",
+            "换手率": "turnover",
         }
         df = df.rename(columns={k: v for k, v in column_map.items() if k in df.columns})
         if "date" in df.columns:

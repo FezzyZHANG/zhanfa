@@ -29,7 +29,8 @@ DEFAULT_WL_NAME = "默认"
 def list_watchlists(db: Session) -> list[dict]:
     _ensure_default(db)
     result = db.execute(
-        select(Watchlist).options(joinedload(Watchlist.items).joinedload(WatchlistItem.stock))
+        select(Watchlist)
+        .options(joinedload(Watchlist.items).joinedload(WatchlistItem.stock))
         .order_by(Watchlist.created_at.asc())
     )
     watchlists = result.scalars().unique().all()
@@ -55,7 +56,7 @@ def update_watchlist(db: Session, wl_id: int, name: str) -> dict | None:
     wl = db.get(Watchlist, wl_id)
     if wl is None:
         return None
-    wl.name = name
+    wl.name = name  # type: ignore[assignment]
     db.commit()
     db.refresh(wl)
     return _serialize_wl(wl)
@@ -75,7 +76,9 @@ def delete_watchlist(db: Session, wl_id: int) -> tuple[bool, str]:
 # ── Items CRUD ─────────────────────────────────────
 
 
-def add_item(db: Session, wl_id: int, code: str, notes: str | None = None) -> dict | None:
+def add_item(
+    db: Session, wl_id: int, code: str, notes: str | None = None
+) -> dict | None:
     code = normalize_stock_code(code)
     wl = db.get(Watchlist, wl_id)
     if wl is None:
@@ -111,7 +114,9 @@ def remove_item(db: Session, wl_id: int, code: str) -> bool:
     return False
 
 
-def update_item_notes(db: Session, wl_id: int, code: str, notes: str | None) -> dict | None:
+def update_item_notes(
+    db: Session, wl_id: int, code: str, notes: str | None
+) -> dict | None:
     code = normalize_stock_code(code)
     wl = db.get(Watchlist, wl_id)
     if wl is None:
@@ -146,7 +151,9 @@ def batch_add_items(db: Session, wl_id: int, codes: list[str]) -> dict | None:
     return _serialize_wl(wl)
 
 
-def batch_move_items(db: Session, from_wl_id: int, to_wl_id: int, codes: list[str]) -> dict | None:
+def batch_move_items(
+    db: Session, from_wl_id: int, to_wl_id: int, codes: list[str]
+) -> dict | None:
     from_wl = db.get(Watchlist, from_wl_id)
     to_wl = db.get(Watchlist, to_wl_id)
     if from_wl is None or to_wl is None:
@@ -171,7 +178,9 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
     if wl is None:
         return None
 
-    codes = list(dict.fromkeys([normalize_stock_code(c) for c in codes if str(c).strip()]))  # dedup preserve order
+    codes = list(
+        dict.fromkeys([normalize_stock_code(c) for c in codes if str(c).strip()])
+    )  # dedup preserve order
     current_codes = {item.code for item in wl.items}
 
     # Find names from DB
@@ -179,11 +188,14 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
     if codes:
         try:
             from sqlalchemy import select as sa_select
+
             result = db.execute(sa_select(Stock).where(Stock.code.in_(codes)))
             for st in result.scalars():
-                names[st.code] = st.name
+                names[st.code] = st.name  # type: ignore[index,assignment]
         except Exception:
-            logger.exception("Failed to query stock names in batch_add_preview (codes=%s)", codes)
+            logger.exception(
+                "Failed to query stock names in batch_add_preview (codes=%s)", codes
+            )
 
     # Check other watchlists
     preview = []
@@ -199,6 +211,7 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
         in_other = []
         try:
             from sqlalchemy import text
+
             rows = db.execute(
                 text(
                     "SELECT w.name FROM watchlists w "
@@ -209,16 +222,26 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
             ).fetchall()
             in_other = [r[0] for r in rows]
         except Exception:
-            logger.exception("Failed to query other watchlists in batch_add_preview (code=%s, wl_id=%s)", code, wl_id)
+            logger.exception(
+                "Failed to query other watchlists in batch_add_preview (code=%s, wl_id=%s)",
+                code,
+                wl_id,
+            )
 
-        preview.append({
-            "code": code,
-            "name": names.get(code, ""),
-            "in_current": in_current,
-            "in_other": in_other,
-        })
+        preview.append(
+            {
+                "code": code,
+                "name": names.get(code, ""),
+                "in_current": in_current,
+                "in_other": in_other,
+            }
+        )
 
-    return {"preview": preview, "new_count": new_count, "existing_count": existing_count}
+    return {
+        "preview": preview,
+        "new_count": new_count,
+        "existing_count": existing_count,
+    }
 
 
 def batch_delete_items(db: Session, wl_id: int, codes: list[str]) -> int:
@@ -247,6 +270,7 @@ def _compute_freshness(store: "Store", code: str, freq: str) -> str:
     if mtime is None:
         return "unknown"
     from datetime import datetime, timezone
+
     age = datetime.now(timezone.utc) - mtime
     hours = age.total_seconds() / 3600
     if hours < 1:
@@ -275,9 +299,10 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
     if codes:
         try:
             from sqlalchemy import select as sa_select
+
             result = db.execute(sa_select(Stock).where(Stock.code.in_(codes)))
             for st in result.scalars():
-                names[st.code] = st.name
+                names[st.code] = st.name  # type: ignore[index,assignment]
         except Exception:
             logger.exception("Failed to query stock names for quotes (codes=%s)", codes)
 
@@ -327,10 +352,16 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
                         prev_close = float(df.iloc[-2]["close"])
                         if prev_close and prev_close != 0:
                             change_pct = (latest_price - prev_close) / prev_close
-                    data_status["daily_start"] = df.index[0].date() if hasattr(df.index[0], "date") else None
-                    data_status["daily_end"] = df.index[-1].date() if hasattr(df.index[-1], "date") else None
+                    data_status["daily_start"] = (
+                        df.index[0].date() if hasattr(df.index[0], "date") else None
+                    )
+                    data_status["daily_end"] = (
+                        df.index[-1].date() if hasattr(df.index[-1], "date") else None
+                    )
         except Exception:
-            logger.warning("Failed to read daily data for quotes (code=%s)", code, exc_info=True)
+            logger.warning(
+                "Failed to read daily data for quotes (code=%s)", code, exc_info=True
+            )
 
         # ── Financial: cache-first ──
         try:
@@ -349,20 +380,26 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
                     data_status["has_financial"] = True
                     data_status["financial_periods"] = len(fin)
         except Exception:
-            logger.warning("Failed to read financial data for quotes (code=%s)", code, exc_info=True)
+            logger.warning(
+                "Failed to read financial data for quotes (code=%s)",
+                code,
+                exc_info=True,
+            )
 
-        items.append({
-            "code": code,
-            "name": name,
-            "latest_price": latest_price,
-            "change_pct": change_pct,
-            "pe": pe,
-            "pb": pb,
-            "dividend_yield": dividend_yield,
-            "notes": item.notes,
-            "data_status": data_status,
-            "data_freshness": data_freshness,
-        })
+        items.append(
+            {
+                "code": code,
+                "name": name,
+                "latest_price": latest_price,
+                "change_pct": change_pct,
+                "pe": pe,
+                "pb": pb,
+                "dividend_yield": dividend_yield,
+                "notes": item.notes,
+                "data_status": data_status,
+                "data_freshness": data_freshness,
+            }
+        )
 
     return {"id": wl.id, "name": wl.name, "items": items}
 
@@ -391,9 +428,14 @@ def search_stocks(db: Session, q: str) -> list[dict]:
         df = fetcher.stock_list()
         df = df.copy()
         df["code"] = df["code"].map(normalize_stock_code)
-        mask = df["code"].astype(str).str.contains(q_lower) | df["name"].astype(str).str.contains(q_lower)
+        mask = df["code"].astype(str).str.contains(q_lower) | df["name"].astype(
+            str
+        ).str.contains(q_lower)
         hits = df[mask].head(20)
-        return [{"code": normalize_stock_code(r["code"]), "name": str(r["name"])} for _, r in hits.iterrows()]
+        return [
+            {"code": normalize_stock_code(r["code"]), "name": str(r["name"])}
+            for _, r in hits.iterrows()
+        ]
     except Exception:
         return []
 
@@ -414,10 +456,21 @@ def export_csv(db: Session, wl_id: int) -> str | None:
         try:
             stock = db.get(Stock, item.code)
             if stock:
-                name = stock.name
+                name = stock.name  # type: ignore[assignment]
         except Exception:
-            logger.warning("Failed to get stock name for CSV export (code=%s)", item.code, exc_info=True)
-        writer.writerow([item.code, name, item.notes or "", item.added_at.isoformat() if item.added_at else ""])
+            logger.warning(
+                "Failed to get stock name for CSV export (code=%s)",
+                item.code,
+                exc_info=True,
+            )
+        writer.writerow(
+            [
+                item.code,
+                name,
+                item.notes or "",
+                item.added_at.isoformat() if item.added_at else "",
+            ]
+        )
 
     return output.getvalue()
 
@@ -431,12 +484,14 @@ def _serialize_wl(wl: Watchlist) -> dict:
         name = ""
         if hasattr(item, "stock") and item.stock:
             name = item.stock.name
-        items.append({
-            "code": item.code,
-            "name": name,
-            "added_at": item.added_at,
-            "notes": item.notes,
-        })
+        items.append(
+            {
+                "code": item.code,
+                "name": name,
+                "added_at": item.added_at,
+                "notes": item.notes,
+            }
+        )
     return {
         "id": wl.id,
         "name": wl.name,
@@ -468,12 +523,18 @@ def _ensure_stock(db: Session, code: str) -> None:
         if not match.empty:
             name = str(match.iloc[0]["name"])
     except Exception:
-        logger.warning("Failed to resolve stock name via akshare in _ensure_stock (code=%s)", code, exc_info=True)
-    db.add(Stock(
-        code=code,
-        name=name or code,
-        exchange="SZ" if code.startswith(("0", "3")) else "SH",
-    ))
+        logger.warning(
+            "Failed to resolve stock name via akshare in _ensure_stock (code=%s)",
+            code,
+            exc_info=True,
+        )
+    db.add(
+        Stock(
+            code=code,
+            name=name or code,
+            exchange="SZ" if code.startswith(("0", "3")) else "SH",
+        )
+    )
     db.flush()
 
 

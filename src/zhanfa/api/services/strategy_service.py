@@ -22,8 +22,7 @@ def list_strategies(
         if search:
             pattern = f"%{search}%"
             q = q.filter(
-                (Strategy.name.ilike(pattern)) |
-                (Strategy.description.ilike(pattern))
+                (Strategy.name.ilike(pattern)) | (Strategy.description.ilike(pattern))
             )
         rows = q.order_by(Strategy.id).all()
         return [_strategy_to_dict(r) for r in rows]
@@ -87,7 +86,7 @@ def update_strategy(strategy_id: int, params: dict[str, Any]) -> dict[str, Any] 
         row = session.query(Strategy).filter_by(id=strategy_id).first()
         if row is None:
             return None
-        row.params = params
+        row.params = params  # type: ignore[assignment]
         session.commit()
         session.refresh(row)
         return _strategy_to_dict(row)
@@ -128,7 +127,7 @@ def _resolve_code_ref(key: str) -> str | None:
             .first()
         )
         if row and row.code_ref:
-            return row.code_ref
+            return str(row.code_ref)
 
         # Try suffix match on code_ref (e.g. "sma_cross" matches "...SMACross")
         if not row:
@@ -138,7 +137,7 @@ def _resolve_code_ref(key: str) -> str | None:
                 .first()
             )
         if row and row.code_ref:
-            return row.code_ref
+            return str(row.code_ref)
     finally:
         session.close()
 

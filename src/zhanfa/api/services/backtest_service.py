@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from typing import Any
 from datetime import date, datetime, timezone
 
 
@@ -48,7 +49,9 @@ def _resolve_strategy_id(request: dict) -> int | None:
     try:
         row = (
             session.query(Strategy)
-            .filter((Strategy.name == strategy_key) | (Strategy.code_ref == strategy_key))
+            .filter(
+                (Strategy.name == strategy_key) | (Strategy.code_ref == strategy_key)
+            )
             .first()
         )
         if not row:
@@ -57,12 +60,14 @@ def _resolve_strategy_id(request: dict) -> int | None:
                 .filter(Strategy.code_ref.endswith(f".{strategy_key}"))
                 .first()
             )
-        return row.id if row else None
+        return row.id if row else None  # type: ignore[return-value]
     finally:
         session.close()
 
 
-def _create_db_record(task_id: str, request: dict, strategy_id: int | None) -> BacktestResult | None:
+def _create_db_record(
+    task_id: str, request: dict, strategy_id: int | None
+) -> BacktestResult | None:
     session = SessionLocal()
     try:
         record = BacktestResult(
@@ -83,7 +88,9 @@ def _create_db_record(task_id: str, request: dict, strategy_id: int | None) -> B
         session.rollback()
         logger.exception(
             "Failed to create backtest db record: task_id=%s strategy_id=%s code=%s",
-            task_id, strategy_id, request.get("code"),
+            task_id,
+            strategy_id,
+            request.get("code"),
         )
         return None
     finally:
@@ -95,7 +102,9 @@ def _update_db_record(db_id: int, updates: dict) -> None:
     try:
         row = session.query(BacktestResult).filter_by(id=db_id).first()
         if row is None:
-            logger.warning("Cannot update backtest db record: db_id=%s not found", db_id)
+            logger.warning(
+                "Cannot update backtest db record: db_id=%s not found", db_id
+            )
             return
         for key, value in updates.items():
             setattr(row, key, value)
@@ -104,7 +113,8 @@ def _update_db_record(db_id: int, updates: dict) -> None:
         session.rollback()
         logger.exception(
             "Failed to update backtest db record: db_id=%s fields=%s",
-            db_id, list(updates.keys()),
+            db_id,
+            list(updates.keys()),
         )
     finally:
         session.close()
@@ -119,7 +129,9 @@ def submit_backtest(request: dict) -> str:
     if db_record is None:
         logger.warning(
             "Backtest task %s will run without DB persistence: strategy_id=%s code=%s",
-            task_id, strategy_id, request.get("code"),
+            task_id,
+            strategy_id,
+            request.get("code"),
         )
 
     _tasks[task_id] = {
@@ -162,29 +174,37 @@ async def run_backtest_async(task_id: str) -> None:
         task["status"] = "completed"
 
         if task.get("db_id"):
-            _update_db_record(task["db_id"], {
-                "metrics": task["metrics"],
-                "equity_curve": task["equity_curve"],
-                "drawdown_curve": task["drawdown_curve"],
-                "benchmark_curve": task["benchmark_curve"],
-                "yearly_returns": task["yearly_returns"],
-                "monthly_returns": task["monthly_returns"],
-                "trades": task["trades"],
-                "status": "completed",
-            })
+            _update_db_record(
+                task["db_id"],
+                {
+                    "metrics": task["metrics"],
+                    "equity_curve": task["equity_curve"],
+                    "drawdown_curve": task["drawdown_curve"],
+                    "benchmark_curve": task["benchmark_curve"],
+                    "yearly_returns": task["yearly_returns"],
+                    "monthly_returns": task["monthly_returns"],
+                    "trades": task["trades"],
+                    "status": "completed",
+                },
+            )
     except Exception as e:
         logger.exception(
             "Backtest execution failed: task_id=%s strategy=%s code=%s",
-            task_id, req.get("strategy"), req.get("code"),
+            task_id,
+            req.get("strategy"),
+            req.get("code"),
         )
         task["status"] = "failed"
         task["error"] = str(e)
 
         if task.get("db_id"):
-            _update_db_record(task["db_id"], {
-                "metrics": {"error": str(e)},
-                "status": "failed",
-            })
+            _update_db_record(
+                task["db_id"],
+                {
+                    "metrics": {"error": str(e)},
+                    "status": "failed",
+                },
+            )
     finally:
         task["completed_at"] = datetime.now(timezone.utc)
 
@@ -227,7 +247,11 @@ def get_history() -> list[dict]:
 def _get_db_history() -> list[dict]:
     session = SessionLocal()
     try:
-        rows = session.query(BacktestResult).order_by(BacktestResult.created_at.desc()).all()
+        rows = (
+            session.query(BacktestResult)
+            .order_by(BacktestResult.created_at.desc())
+            .all()
+        )
         return [_db_row_to_history_item(r) for r in rows]
     finally:
         session.close()
@@ -255,14 +279,14 @@ def _serialize_task(t: dict) -> dict:
 
 
 def _db_row_to_history_item(row: BacktestResult) -> dict:
-    m = row.metrics or {}
+    m: dict[str, Any] = row.metrics or {}  # type: ignore[assignment]
     ct = row.created_at or datetime.now(timezone.utc)
     if ct.tzinfo is None:
         ct = ct.replace(tzinfo=timezone.utc)
     return {
         "task_id": row.task_id or "",
         "code": row.stock_codes[0] if row.stock_codes else "",
-        "strategy": _strategy_name_for(row.strategy_id),
+        "strategy": _strategy_name_for(row.strategy_id),  # type: ignore[arg-type]
         "status": row.status,
         "total_return": m.get("total_return"),
         "sharpe": m.get("sharpe"),
@@ -282,7 +306,7 @@ def _db_record_to_task_dict(row: BacktestResult) -> dict:
         "status": row.status,
         "request": {
             "code": row.stock_codes[0] if row.stock_codes else "",
-            "strategy": _strategy_name_for(row.strategy_id),
+            "strategy": _strategy_name_for(row.strategy_id),  # type: ignore[arg-type]
             "start_date": date_str,
             "end_date": end_str,
             "params": row.params or {},
@@ -294,7 +318,7 @@ def _db_record_to_task_dict(row: BacktestResult) -> dict:
         "yearly_returns": row.yearly_returns or [],
         "monthly_returns": row.monthly_returns or [],
         "trades": row.trades or [],
-        "error": (row.metrics or {}).get("error"),
+        "error": (row.metrics or {}).get("error"),  # type: ignore[call-overload]
         "created_at": ct,
         "completed_at": ct,
     }
@@ -306,7 +330,7 @@ def _strategy_name_for(strategy_id: int | None) -> str:
     session = SessionLocal()
     try:
         row = session.query(Strategy).filter_by(id=strategy_id).first()
-        return row.name if row else ""
+        return row.name if row else ""  # type: ignore[return-value]
     finally:
         session.close()
 
@@ -316,7 +340,9 @@ def _execute_backtest(req: dict) -> dict:
     df = fetcher.daily(req["code"], start=req["start_date"], end=req["end_date"])
     df = Pipeline.clean(df)
 
-    strategy: BaseStrategy = create_strategy_instance(req["strategy"], req.get("params", {}))
+    strategy: BaseStrategy = create_strategy_instance(
+        req["strategy"], req.get("params", {})
+    )
 
     pf = run_backtest_from_strategy(
         df,
@@ -330,16 +356,26 @@ def _execute_backtest(req: dict) -> dict:
     equity = pf.value()
     metrics = compute_metrics(equity)
 
-    equity_curve = [{"date": str(d.date()), "value": round(float(v), 4)} for d, v in equity.items()]
+    equity_curve = [
+        {"date": str(d.date()), "value": round(float(v), 4)} for d, v in equity.items()
+    ]
 
     drawdown = pf.drawdown()
-    drawdown_curve = [{"date": str(d.date()), "value": round(float(v), 4)} for d, v in drawdown.items()]
+    drawdown_curve = [
+        {"date": str(d.date()), "value": round(float(v), 4)}
+        for d, v in drawdown.items()
+    ]
 
     yearly = equity.resample("YE").apply(lambda x: x.iloc[-1] / x.iloc[0] - 1)
-    yearly_returns = [{"year": int(d.year), "value": round(float(v), 4)} for d, v in yearly.items()]
+    yearly_returns = [
+        {"year": int(d.year), "value": round(float(v), 4)} for d, v in yearly.items()
+    ]
 
     monthly = equity.resample("ME").apply(lambda x: x.iloc[-1] / x.iloc[0] - 1)
-    monthly_returns = [{"year": int(d.year), "month": int(d.month), "value": round(float(v), 4)} for d, v in monthly.items()]
+    monthly_returns = [
+        {"year": int(d.year), "month": int(d.month), "value": round(float(v), 4)}
+        for d, v in monthly.items()
+    ]
 
     records = pf.trades.records
     trades_list = []
@@ -349,23 +385,30 @@ def _execute_backtest(req: dict) -> dict:
             entry_i = int(row["entry_idx"])
             exit_i = int(row["exit_idx"])
             is_long = row["direction"] == 0
-            trades_list.append({
-                "date": str(date_index[entry_i].date()),
-                "action": "buy" if is_long else "sell",
-                "price": round(float(row["entry_price"]), 2),
-                "quantity": abs(int(row["size"])),
-                "pnl": 0.0,
-            })
-            trades_list.append({
-                "date": str(date_index[exit_i].date()),
-                "action": "sell" if is_long else "buy",
-                "price": round(float(row["exit_price"]), 2),
-                "quantity": abs(int(row["size"])),
-                "pnl": round(float(row["pnl"]), 2),
-            })
+            trades_list.append(
+                {
+                    "date": str(date_index[entry_i].date()),
+                    "action": "buy" if is_long else "sell",
+                    "price": round(float(row["entry_price"]), 2),
+                    "quantity": abs(int(row["size"])),
+                    "pnl": 0.0,
+                }
+            )
+            trades_list.append(
+                {
+                    "date": str(date_index[exit_i].date()),
+                    "action": "sell" if is_long else "buy",
+                    "price": round(float(row["exit_price"]), 2),
+                    "quantity": abs(int(row["size"])),
+                    "pnl": round(float(row["pnl"]), 2),
+                }
+            )
 
     return {
-        "metrics": {k: float(v) if isinstance(v, (int, float)) else v for k, v in metrics.items()},
+        "metrics": {
+            k: float(v) if isinstance(v, (int, float)) else v
+            for k, v in metrics.items()
+        },
         "equity_curve": equity_curve,
         "drawdown_curve": drawdown_curve,
         "benchmark_curve": None,

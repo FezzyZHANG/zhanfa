@@ -31,7 +31,7 @@ class TrendFundamental(BaseStrategy):
         if has_fundamental:
             fundamental_ok = (data["pe"] < self.max_pe) & (data["roe"] > self.min_roe)
         else:
-            fundamental_ok = True
+            fundamental_ok = pd.Series(True, index=data.index)  # type: ignore[assignment]
 
         signals = trend_up & fundamental_ok
         return signals.fillna(False)

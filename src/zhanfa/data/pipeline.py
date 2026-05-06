@@ -23,7 +23,9 @@ class Pipeline:
         return df
 
     @staticmethod
-    def align(multi: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, dict[str, pd.Series]]:
+    def align(
+        multi: dict[str, pd.DataFrame],
+    ) -> tuple[pd.DataFrame, dict[str, pd.Series]]:
         """
         多标的对齐：统一交易日历，返回对齐后的 price DataFrame + returns dict
         multi: {code: df}，每个 df 必须有 'close' 列，index 为 date
@@ -77,14 +79,14 @@ class Pipeline:
     def _calc_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
         high, low, close = df["high"], df["low"], df["close"]
         prev_close = close.shift(1)
-        tr = pd.concat([
-            high - low,
-            (high - prev_close).abs(),
-            (low - prev_close).abs()
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+        ).max(axis=1)
         return tr.ewm(span=period, adjust=False).mean()
 
     @staticmethod
-    def train_test_split(df: pd.DataFrame, split_date: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def train_test_split(
+        df: pd.DataFrame, split_date: str
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """按时点切分训练集和测试集"""
-        return df.loc[:split_date], df.loc[split_date:]
+        return df.loc[:split_date], df.loc[split_date:]  # type: ignore[misc]

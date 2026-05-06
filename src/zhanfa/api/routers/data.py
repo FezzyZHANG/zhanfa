@@ -31,6 +31,7 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 # ── Helpers ─────────────────────────────────────────
 
+
 def _db_stats() -> DBStats:
     with SessionLocal() as s:
         return DBStats(
@@ -51,11 +52,15 @@ def _stock_name(code: str, store: Store) -> str:
             if not match.empty:
                 return str(match.iloc[0]["name"])
     except Exception:
-        logger.warning("Failed to read stock_list cache in _stock_name (code=%s)", code, exc_info=True)
+        logger.warning(
+            "Failed to read stock_list cache in _stock_name (code=%s)",
+            code,
+            exc_info=True,
+        )
     with SessionLocal() as s:
         st = s.query(Stock).filter(Stock.code == code).first()
         if st:
-            return st.name
+            return st.name  # type: ignore[return-value]
     return ""
 
 
@@ -100,7 +105,9 @@ def get_stock_status(code: str = Query(...)):
             result.daily_rows = rows
             result.daily_cached_at = store.mtime(code, "daily")
     except Exception:
-        logger.warning("Failed to read daily cache for stock-status (code=%s)", code, exc_info=True)
+        logger.warning(
+            "Failed to read daily cache for stock-status (code=%s)", code, exc_info=True
+        )
     try:
         if store.exists(code, "financial"):
             result.has_financial = True
@@ -110,22 +117,36 @@ def get_stock_status(code: str = Query(...)):
             result.financial_rows = rows
             result.financial_cached_at = store.mtime(code, "financial")
     except Exception:
-        logger.warning("Failed to read financial cache for stock-status (code=%s)", code, exc_info=True)
-    for freq, attr in [("minute_60", "minute_60"), ("minute_30", "minute_30"), ("minute_15", "minute_15")]:
+        logger.warning(
+            "Failed to read financial cache for stock-status (code=%s)",
+            code,
+            exc_info=True,
+        )
+    for freq, attr in [
+        ("minute_60", "minute_60"),
+        ("minute_30", "minute_30"),
+        ("minute_15", "minute_15"),
+    ]:
         try:
             if store.exists(code, freq):
-                s, e, rows = _parquet_date_info(store._path(code, freq))
+                dt_start, dt_end, dt_rows = _parquet_date_info(store._path(code, freq))
                 setattr(getattr(result, attr), "exists", True)
-                setattr(getattr(result, attr), "start", s)
-                setattr(getattr(result, attr), "end", e)
-                setattr(getattr(result, attr), "rows", rows)
+                setattr(getattr(result, attr), "start", dt_start)
+                setattr(getattr(result, attr), "end", dt_end)
+                setattr(getattr(result, attr), "rows", dt_rows)
                 setattr(getattr(result, attr), "cached_at", store.mtime(code, freq))
         except Exception:
-            logger.warning("Failed to read %s cache for stock-status (code=%s)", freq, code, exc_info=True)
+            logger.warning(
+                "Failed to read %s cache for stock-status (code=%s)",
+                freq,
+                code,
+                exc_info=True,
+            )
     try:
-        with SessionLocal() as s:
+        with SessionLocal() as db_session:
             from sqlalchemy import text
-            rows = s.execute(
+
+            wl_rows = db_session.execute(
                 text(
                     "SELECT w.name FROM watchlists w "
                     "JOIN watchlist_items wi ON w.id = wi.watchlist_id "
@@ -133,9 +154,11 @@ def get_stock_status(code: str = Query(...)):
                 ),
                 {"code": code},
             ).fetchall()
-            result.in_watchlist = [r[0] for r in rows]
+            result.in_watchlist = [r[0] for r in wl_rows]
     except Exception:
-        logger.exception("Failed to query watchlist membership for stock-status (code=%s)", code)
+        logger.exception(
+            "Failed to query watchlist membership for stock-status (code=%s)", code
+        )
 
     return result
 
@@ -147,6 +170,7 @@ _VALID_FREQ = frozenset({"daily", "minute_60", "minute_30", "minute_15"})
 def refresh(body: RefreshRequest):
     if body.freq not in _VALID_FREQ:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=400,
             content={"detail": f"未知频率: {body.freq}，有效值: {sorted(_VALID_FREQ)}"},
@@ -191,6 +215,7 @@ def refresh(body: RefreshRequest):
 
 # ── Internal helpers ───────────────────────────────
 
+
 def _parquet_date_info(path) -> tuple[date | None, date | None, int]:
     """Read first/last rows+row count of a parquet file via pyarrow."""
     import pandas as pd
@@ -214,6 +239,7 @@ def _parquet_date_info(path) -> tuple[date | None, date | None, int]:
 def _find_index_column(pf) -> str | None:
     """Extract the pandas index column name from parquet schema metadata."""
     import json
+
     meta = pf.schema_arrow.metadata
     if meta is None:
         return None

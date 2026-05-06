@@ -29,7 +29,9 @@ class Scheduler:
         self._on_error = on_error
         self._running = False
         self._last_errors: list[dict] = []  # recent error records
-        self._execution_log: dict[str, str | None] = {}  # job_label → last_run_at or error
+        self._execution_log: dict[
+            str, str | None
+        ] = {}  # job_label → last_run_at or error
 
         logging.basicConfig(
             level=logging.INFO,
@@ -49,20 +51,24 @@ class Scheduler:
             def update_data():
                 ...
         """
+
         def decorator(func: Callable):
             wrapped = self._wrap(func, f"{func.__name__}@daily:{time_str}")
             schedule.every().day.at(time_str).do(wrapped)
             self._register(func.__name__, time_str, "daily")
             return func
+
         return decorator
 
     def hourly(self) -> Callable:
         """每小时执行装饰器"""
+
         def decorator(func: Callable):
             wrapped = self._wrap(func, f"{func.__name__}@hourly")
             schedule.every().hour.do(wrapped)
             self._register(func.__name__, "hourly", "hourly")
             return func
+
         return decorator
 
     # ── 任务注册 / 查询 ────────────────────
@@ -102,10 +108,15 @@ class Scheduler:
         try:
             Path(self._state_file).parent.mkdir(parents=True, exist_ok=True)
             with open(self._state_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "jobs": self._jobs,
-                    "saved_at": datetime.now(timezone.utc).isoformat(),
-                }, f, ensure_ascii=False, indent=2)
+                json.dump(
+                    {
+                        "jobs": self._jobs,
+                        "saved_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
         except Exception:
             logger.exception("持久化失败: %s", self._state_file)
 
@@ -122,7 +133,9 @@ class Scheduler:
 
     # ── 编程式注册 ──────────────────────────
 
-    def register_func(self, name: str, time_str: str, job_type: str, func: Callable) -> None:
+    def register_func(
+        self, name: str, time_str: str, job_type: str, func: Callable
+    ) -> None:
         """直接注册函数为定时任务（非装饰器方式）。"""
         wrapped = self._wrap(func, f"{name}@{job_type}:{time_str}")
         if job_type == "daily":
@@ -137,6 +150,7 @@ class Scheduler:
 
     def _wrap(self, func: Callable, job_label: str) -> Callable:
         """包装任务以统一错误处理和通知。"""
+
         def wrapper():
             try:
                 logger.info("执行任务: %s", job_label)
@@ -148,14 +162,17 @@ class Scheduler:
                 logger.exception(msg)
                 tb = traceback.format_exc()
                 self._execution_log[job_label] = f"error: {str(e)[:200]}"
-                self._last_errors.append({
-                    "job": job_label,
-                    "error": str(e)[:200],
-                    "time": datetime.now(timezone.utc).isoformat(),
-                })
+                self._last_errors.append(
+                    {
+                        "job": job_label,
+                        "error": str(e)[:200],
+                        "time": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
                 if len(self._last_errors) > 20:
                     self._last_errors = self._last_errors[-20:]
                 self._notify_error(job_label, tb)
+
         return wrapper
 
     def get_status(self) -> dict:
@@ -172,7 +189,11 @@ class Scheduler:
         result: dict[str, str | None] = {}
         for job in schedule.jobs:
             next_run = job.next_run
-            label = job.job_func.keyword.get("label", "") if hasattr(job.job_func, "keyword") else ""
+            label = (
+                job.job_func.keyword.get("label", "")
+                if hasattr(job.job_func, "keyword") and job.job_func is not None
+                else ""
+            )
             if label:
                 result[label] = next_run.isoformat() if next_run else None
         return result

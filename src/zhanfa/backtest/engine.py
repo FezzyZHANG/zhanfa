@@ -73,14 +73,27 @@ def run_backtest_from_strategy(
         signals = strategy.generate_signals(price)
         price_series = price["close"]
     else:
-        signals = strategy.generate_signals(price.to_frame("close").pipe(lambda d: d.assign(
-            open=price, high=price, low=price, volume=1
-        )))
+        signals = strategy.generate_signals(
+            price.to_frame("close").pipe(  # type: ignore[operator]
+                lambda d: d.assign(  # type: ignore[call-overload]
+                    open=price,  # type: ignore[arg-type]
+                    high=price,  # type: ignore[arg-type]
+                    low=price,  # type: ignore[arg-type]
+                    volume=1,  # type: ignore[arg-type]
+                )
+            )
+        )
         price_series = price if isinstance(price, pd.Series) else price["close"]
 
     return run_backtest(
-        price_series, signals, freq, initial_capital, commission, slippage,
-        sl_stop=sl_stop, tp_stop=tp_stop,
+        price_series,
+        signals,
+        freq,
+        initial_capital,
+        commission,
+        slippage,
+        sl_stop=sl_stop,
+        tp_stop=tp_stop,
     )
 
 
