@@ -84,15 +84,8 @@ export async function fetchStocks(): Promise<StockInfo[]> {
 
 export async function fetchStock(code: string): Promise<StockInfo | undefined> {
   if (USE_MOCK) return delay(mockStocks.find((s) => s.code === code));
-  const { data } = await api.get<{ code: string; name: string; latest_financial?: Record<string, unknown> | null }>(`/stocks/${code}`);
-  return {
-    code: data.code,
-    name: data.name,
-    exchange: '',
-    industry: '',
-    market_cap: 0,
-    listed_date: '',
-  };
+  const { data } = await api.get<StockInfo>(`/stocks/${code}`);
+  return data;
 }
 
 // ── K-line ──────────────────────────────────────────

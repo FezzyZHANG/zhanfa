@@ -100,8 +100,8 @@ export function StockDetailPage() {
           <span className="text-lg text-muted-foreground">{stock.code}</span>
         </div>
         <div className="flex gap-3 text-sm text-muted-foreground">
-          <span>{stock.exchange} · {stock.industry}</span>
-          <span>市值 {formatCurrency(stock.market_cap)}</span>
+          <span>{[stock.exchange, stock.industry].filter(Boolean).join(' · ') || '--'}</span>
+          <span>市值 {formatCurrency(stock.market_cap ?? 0)}</span>
         </div>
       </div>
 

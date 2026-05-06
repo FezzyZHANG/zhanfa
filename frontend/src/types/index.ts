@@ -81,10 +81,10 @@ export interface Trade {
 export interface StockInfo {
   code: string;
   name: string;
-  exchange: string;
-  industry: string;
-  market_cap: number;
-  listed_date: string;
+  exchange?: string | null;
+  industry?: string | null;
+  market_cap?: number | null;
+  listed_date?: string | null;
 }
 
 export interface KlineData {

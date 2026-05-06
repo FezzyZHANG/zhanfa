@@ -108,9 +108,7 @@ describe('fetchStock', () => {
     });
     const result = await fetchStock('000001');
     expect(mockGet).toHaveBeenCalledWith('/stocks/000001');
-    expect(result).toEqual({
-      code: '000001', name: 'Test', exchange: '', industry: '', market_cap: 0, listed_date: '',
-    });
+    expect(result).toEqual({ code: '000001', name: 'Test' });
   });
 });
 
