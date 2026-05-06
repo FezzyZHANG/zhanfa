@@ -21,6 +21,14 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 - [工程中台角色草稿](platform-ops-role.md): 环境分析、质量控制、工单管理与交付协调的职责边界。
 - `auto-code-review/report_full_20260506.md`: 2026-05-06 工程中台全量代码审查报告。
 
+### Git 管理工单
+
+- 每个开发型 ticket 使用独立 git 分支承载，推荐命名为 `ticket/TICKET-xxx-short-title`；自动化或代理创建的分支可保留工具前缀，但必须包含 `TICKET-xxx`。
+- 开始工单前，把 `developer/README.md` 与对应 `developer/tickets/TICKET-*.md` 状态更新为 `🔨 进行中`，并在同一分支提交。
+- 提交信息与 PR 标题必须包含 ticket 编号，例如 `TICKET-043: 增加降级路径日志`，便于从 git 历史反查需求、验收和验证记录。
+- 一个分支原则上只处理一个 ticket；若实现过程中发现新问题，先新增或引用新 ticket，不把无关修复混入当前分支。
+- 完成或取消工单时，在对应 ticket 中记录验证结果、残余风险和文档同步情况，并把 `developer/README.md` 状态更新为 `✅ 已完成` 或 `❌ 取消` 后随代码一起提交。
+
 ## 工单列表
 
 | 编号   | 标题                   | 优先级      | 状态        | 依赖     |
