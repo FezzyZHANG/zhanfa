@@ -21,7 +21,7 @@ class StrategyInfo(BaseModel):
     name: str
     category: str
     description: str = ""
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
     code_ref: str | None = None
     created_at: str = ""
     updated_at: str = ""
@@ -35,7 +35,7 @@ class StrategyCreate(BaseModel):
     name: str
     category: str
     description: str = ""
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class StrategyUpdate(BaseModel):
@@ -130,7 +130,7 @@ class WatchlistResponse(BaseModel):
     id: int
     name: str
     stock_count: int
-    items: list[WatchlistItemDetail] = []
+    items: list[WatchlistItemDetail] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -160,7 +160,7 @@ class BatchPreviewItem(BaseModel):
     code: str
     name: str
     in_current: bool
-    in_other: list[str] = []
+    in_other: list[str] = Field(default_factory=list)
 
 
 class BatchPreviewResponse(BaseModel):
@@ -236,7 +236,7 @@ class BacktestRequest(BaseModel):
     commission: float = 0.0005
     slippage: float = 0.001
     strategy_id: int | None = None
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class BacktestMetrics(BaseModel):
@@ -306,8 +306,8 @@ class SchedulerJob(BaseModel):
 class SchedulerStatus(BaseModel):
     jobs: list[SchedulerJob]
     running: bool = False
-    last_errors: list[dict] = []
-    next_run: dict[str, str | None] = {}
+    last_errors: list[dict] = Field(default_factory=list)
+    next_run: dict[str, str | None] = Field(default_factory=dict)
 
 
 class SchedulerTriggerRequest(BaseModel):
@@ -324,7 +324,7 @@ class CacheStats(BaseModel):
     storage_bytes: int = 0
     date_range_start: date | None = None
     date_range_end: date | None = None
-    freq_stats: dict[str, int] = {}
+    freq_stats: dict[str, int] = Field(default_factory=dict)
     last_refreshed_at: datetime | None = None
 
 
@@ -362,10 +362,10 @@ class StockDataStatus(BaseModel):
     financial_end: date | None = None
     financial_rows: int = 0
     financial_cached_at: datetime | None = None
-    minute_60: MinuteCacheStatus = MinuteCacheStatus()
-    minute_30: MinuteCacheStatus = MinuteCacheStatus()
-    minute_15: MinuteCacheStatus = MinuteCacheStatus()
-    in_watchlist: list[str] = []
+    minute_60: MinuteCacheStatus = Field(default_factory=MinuteCacheStatus)
+    minute_30: MinuteCacheStatus = Field(default_factory=MinuteCacheStatus)
+    minute_15: MinuteCacheStatus = Field(default_factory=MinuteCacheStatus)
+    in_watchlist: list[str] = Field(default_factory=list)
 
 
 # ── Data Refresh ──────────────────────────────────────
@@ -387,7 +387,7 @@ class RefreshResult(BaseModel):
     updated: int = 0
     failed: int = 0
     new_discovered: int = 0
-    errors: list[RefreshError] = []
+    errors: list[RefreshError] = Field(default_factory=list)
 
 
 class InitializeResult(BaseModel):
