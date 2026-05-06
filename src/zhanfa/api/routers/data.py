@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Query
+
+logger = logging.getLogger(__name__)
 
 from zhanfa.api.models import (
     CacheStats,
@@ -48,7 +51,7 @@ def _stock_name(code: str, store: Store) -> str:
             if not match.empty:
                 return str(match.iloc[0]["name"])
     except Exception:
-        pass
+        logger.warning("Failed to read stock_list cache in _stock_name (code=%s)", code, exc_info=True)
     with SessionLocal() as s:
         st = s.query(Stock).filter(Stock.code == code).first()
         if st:
@@ -97,9 +100,7 @@ def get_stock_status(code: str = Query(...)):
             result.daily_rows = rows
             result.daily_cached_at = store.mtime(code, "daily")
     except Exception:
-        pass
-
-    # 财务缓存
+        logger.warning("Failed to read daily cache for stock-status (code=%s)", code, exc_info=True)
     try:
         if store.exists(code, "financial"):
             result.has_financial = True
@@ -109,9 +110,7 @@ def get_stock_status(code: str = Query(...)):
             result.financial_rows = rows
             result.financial_cached_at = store.mtime(code, "financial")
     except Exception:
-        pass
-
-    # 分钟级缓存
+        logger.warning("Failed to read financial cache for stock-status (code=%s)", code, exc_info=True)
     for freq, attr in [("minute_60", "minute_60"), ("minute_30", "minute_30"), ("minute_15", "minute_15")]:
         try:
             if store.exists(code, freq):
@@ -122,9 +121,7 @@ def get_stock_status(code: str = Query(...)):
                 setattr(getattr(result, attr), "rows", rows)
                 setattr(getattr(result, attr), "cached_at", store.mtime(code, freq))
         except Exception:
-            pass
-
-    # 自选股归属
+            logger.warning("Failed to read %s cache for stock-status (code=%s)", freq, code, exc_info=True)
     try:
         with SessionLocal() as s:
             from sqlalchemy import text
@@ -138,7 +135,7 @@ def get_stock_status(code: str = Query(...)):
             ).fetchall()
             result.in_watchlist = [r[0] for r in rows]
     except Exception:
-        pass
+        logger.exception("Failed to query watchlist membership for stock-status (code=%s)", code)
 
     return result
 
