@@ -33,3 +33,4 @@
 - 使用`developer/debug-notes.md`读取和写入此项目较为特殊的技术卡点
 - When building React components, always include jsdom-compatible test setup with mocks for browser-only APIs (canvas, ResizeObserver, etc.) before writing tests.
 - nWhen implementing data pipeline or backend features, always create end-to-end/page-level tests that exercise the full stack (not just unit tests). Verify field names match between frontend display keys and backend response shapes.
+- 使用 git 管理工单：每个开发型 ticket 使用独立分支，分支名、提交信息、PR 标题必须包含 `TICKET-xxx`；开工、交付和取消时同步更新 `developer/README.md` 与对应 `developer/tickets/TICKET-*.md`
