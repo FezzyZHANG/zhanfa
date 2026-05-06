@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Strategy ──────────────────────────────────────────
@@ -237,6 +237,17 @@ class BacktestRequest(BaseModel):
     slippage: float = 0.001
     strategy_id: int | None = None
     params: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def _normalize_date(cls, v: str) -> str:
+        """Accept both ISO YYYY-MM-DD and compact YYYYMMDD, normalize to YYYYMMDD."""
+        if "-" in v:
+            parts = v.strip().split("-")
+            if len(parts) != 3:
+                raise ValueError(f"Invalid date format: {v!r}, expected YYYY-MM-DD or YYYYMMDD")
+            return "".join(p.zfill(2) for p in parts)
+        return v
 
 
 class BacktestMetrics(BaseModel):

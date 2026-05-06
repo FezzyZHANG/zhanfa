@@ -464,8 +464,8 @@ export async function submitBacktest(body: {
     strategy_id: body.strategy_id,
     commission: 0.0005,
     slippage: 0.001,
-    start_date: body.start_date.replace(/-/g, ''),
-    end_date: body.end_date.replace(/-/g, ''),
+    start_date: body.start_date,
+    end_date: body.end_date,
   };
   const { data } = await api.post<{ task_id: string }>('/backtest/run', payload);
   return data;
