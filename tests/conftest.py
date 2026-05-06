@@ -51,7 +51,7 @@ def db_session():
 @pytest.fixture
 def client(monkeypatch):
     """FastAPI TestClient backed by a fresh isolated database."""
-    from zhanfa.api import app
+    from zhanfa.api import create_app
     from zhanfa.api.routers import data as data_router
     from zhanfa.api.services import strategy_service
     from zhanfa.db import base as db_base
@@ -81,15 +81,17 @@ def client(monkeypatch):
     Base.metadata.create_all(bind=engine)
     register_module.register_strategies()
 
+    test_app = create_app(init_database=False, start_scheduler=False)
+
     def override_get_session():
         with TestingSessionLocal() as session:
             yield session
 
-    app.dependency_overrides[db_base.get_session] = override_get_session
+    test_app.dependency_overrides[db_base.get_session] = override_get_session
     try:
-        with TestClient(app) as c:
+        with TestClient(test_app) as c:
             yield c
     finally:
-        app.dependency_overrides.pop(db_base.get_session, None)
+        test_app.dependency_overrides.pop(db_base.get_session, None)
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
