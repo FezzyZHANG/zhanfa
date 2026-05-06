@@ -2,6 +2,11 @@ import axios from 'axios';
 import type {
   Strategy,
   BacktestResult,
+  BacktestMetrics,
+  CurvePoint,
+  YearlyReturn,
+  MonthlyReturn,
+  Trade,
   StockInfo,
   KlineData,
   FinancialData,
@@ -259,6 +264,89 @@ function mapBacktestStatus(status: string): BacktestResult['status'] {
   return 'pending';
 }
 
+// ── Shared BacktestResult builders ──────────────────
+
+interface BacktestResultInput {
+  id: string;
+  strategy_id?: number;
+  strategy_name?: string;
+  stock_codes?: string[];
+  params?: Record<string, unknown>;
+  start_date?: string;
+  end_date?: string;
+  metrics?: Record<string, number> | null;
+  equity_curve?: CurvePoint[] | null;
+  drawdown_curve?: CurvePoint[] | null;
+  benchmark_curve?: CurvePoint[] | null;
+  yearly_returns?: YearlyReturn[] | null;
+  monthly_returns?: MonthlyReturn[] | null;
+  trades?: { date: string; action: string; price: number; quantity: number; pnl?: number }[] | null;
+  status: string;
+  created_at?: string;
+}
+
+function emptyBacktestMetrics(): BacktestMetrics {
+  return {
+    total_return: 0,
+    ann_return: 0,
+    ann_volatility: 0,
+    sharpe: 0,
+    sortino: 0,
+    max_drawdown: 0,
+    calmar: 0,
+    win_rate: 0,
+    years: 0,
+  };
+}
+
+function mapTrades(
+  trades: { date: string; action: string; price: number; quantity: number; pnl?: number }[] | null | undefined
+): Trade[] {
+  if (!trades || trades.length === 0) return [];
+  return trades.map((t) => ({
+    date: t.date,
+    action: t.action as 'buy' | 'sell',
+    price: t.price,
+    quantity: t.quantity,
+    pnl: t.pnl,
+  }));
+}
+
+function buildBacktestResult(input: BacktestResultInput): BacktestResult {
+  const m = input.metrics || {};
+  return {
+    id: input.id,
+    strategy_id: input.strategy_id ?? 0,
+    strategy_name: input.strategy_name,
+    stock_codes: input.stock_codes ?? [],
+    params: input.params ?? {},
+    start_date: input.start_date ?? '',
+    end_date: input.end_date ?? '',
+    metrics: {
+      ...emptyBacktestMetrics(),
+      total_return: m.total_return ?? 0,
+      ann_return: m.ann_return ?? 0,
+      ann_volatility: m.ann_volatility ?? 0,
+      sharpe: m.sharpe ?? 0,
+      sortino: m.sortino ?? 0,
+      max_drawdown: m.max_drawdown ?? 0,
+      calmar: m.calmar ?? 0,
+      win_rate: m.win_rate ?? 0,
+      years: m.years ?? 0,
+    },
+    equity_curve: input.equity_curve ?? [],
+    drawdown_curve: input.drawdown_curve ?? [],
+    benchmark_curve: input.benchmark_curve ?? undefined,
+    yearly_returns: input.yearly_returns ?? [],
+    monthly_returns: input.monthly_returns ?? [],
+    trades: mapTrades(input.trades),
+    status: mapBacktestStatus(input.status),
+    created_at: input.created_at ?? '',
+  };
+}
+
+// ── Endpoint-specific mappers ────────────────────────
+
 interface BacktestHistoryItem {
   task_id: string;
   code: string;
@@ -271,33 +359,18 @@ interface BacktestHistoryItem {
 }
 
 function historyItemToResult(item: BacktestHistoryItem): BacktestResult {
-  return {
+  return buildBacktestResult({
     id: item.task_id,
-    strategy_id: 0,
     strategy_name: item.strategy,
     stock_codes: [item.code],
-    params: {},
-    start_date: '',
-    end_date: '',
     metrics: {
       total_return: item.total_return ?? 0,
-      ann_return: 0,
-      ann_volatility: 0,
       sharpe: item.sharpe ?? 0,
-      sortino: 0,
       max_drawdown: item.max_drawdown ?? 0,
-      calmar: 0,
-      win_rate: 0,
-      years: 0,
     },
-    equity_curve: [],
-    drawdown_curve: [],
-    yearly_returns: [],
-    monthly_returns: [],
-    trades: [],
-    status: mapBacktestStatus(item.status),
+    status: item.status,
     created_at: item.created_at,
-  };
+  });
 }
 
 interface BackendBacktestResult {
@@ -313,11 +386,11 @@ interface BackendBacktestResult {
     params: Record<string, unknown>;
   } | null;
   metrics: Record<string, number> | null;
-  equity_curve: { date: string; value: number }[] | null;
-  drawdown_curve: { date: string; value: number }[] | null;
-  benchmark_curve: { date: string; value: number }[] | null;
-  yearly_returns: { year: number; value: number }[] | null;
-  monthly_returns: { year: number; month: number; value: number }[] | null;
+  equity_curve: CurvePoint[] | null;
+  drawdown_curve: CurvePoint[] | null;
+  benchmark_curve: CurvePoint[] | null;
+  yearly_returns: YearlyReturn[] | null;
+  monthly_returns: MonthlyReturn[] | null;
   trades: { date: string; action: string; price: number; quantity: number; pnl?: number }[] | null;
   error: string | null;
   created_at: string;
@@ -325,42 +398,25 @@ interface BackendBacktestResult {
 }
 
 function taskToResult(task: BackendBacktestResult): BacktestResult {
-  const m = task.metrics || {};
   const req = task.request;
-  return {
+  return buildBacktestResult({
     id: task.task_id,
     strategy_id: req?.strategy_id ?? 0,
     strategy_name: req?.strategy || '',
     stock_codes: req ? [req.code] : [],
-    params: req?.params || {},
-    start_date: req?.start_date || '',
-    end_date: req?.end_date || '',
-    benchmark_curve: task.benchmark_curve ?? undefined,
-    metrics: {
-      total_return: m.total_return ?? 0,
-      ann_return: m.ann_return ?? 0,
-      ann_volatility: m.ann_volatility ?? 0,
-      sharpe: m.sharpe ?? 0,
-      sortino: m.sortino ?? 0,
-      max_drawdown: m.max_drawdown ?? 0,
-      calmar: m.calmar ?? 0,
-      win_rate: m.win_rate ?? 0,
-      years: m.years ?? 0,
-    },
-    equity_curve: task.equity_curve ?? [],
-    drawdown_curve: task.drawdown_curve ?? [],
-    yearly_returns: task.yearly_returns ?? [],
-    monthly_returns: task.monthly_returns ?? [],
-    trades: (task.trades ?? []).map((t) => ({
-      date: t.date,
-      action: t.action as 'buy' | 'sell',
-      price: t.price,
-      quantity: t.quantity,
-      pnl: t.pnl,
-    })),
-    status: mapBacktestStatus(task.status),
+    params: req?.params,
+    start_date: req?.start_date,
+    end_date: req?.end_date,
+    metrics: task.metrics,
+    equity_curve: task.equity_curve,
+    drawdown_curve: task.drawdown_curve,
+    benchmark_curve: task.benchmark_curve,
+    yearly_returns: task.yearly_returns,
+    monthly_returns: task.monthly_returns,
+    trades: task.trades,
+    status: task.status,
     created_at: task.created_at,
-  };
+  });
 }
 
 interface StrategyBacktestResult {
@@ -372,51 +428,34 @@ interface StrategyBacktestResult {
   start_date: string;
   end_date: string;
   metrics: Record<string, number> | null;
-  equity_curve: { date: string; value: number }[] | null;
-  drawdown_curve: { date: string; value: number }[] | null;
-  benchmark_curve: { date: string; value: number }[] | null;
-  yearly_returns: { year: number; value: number }[] | null;
-  monthly_returns: { year: number; month: number; value: number }[] | null;
+  equity_curve: CurvePoint[] | null;
+  drawdown_curve: CurvePoint[] | null;
+  benchmark_curve: CurvePoint[] | null;
+  yearly_returns: YearlyReturn[] | null;
+  monthly_returns: MonthlyReturn[] | null;
   trades: { date: string; action: string; price: number; quantity: number; pnl?: number }[] | null;
   status: string;
   created_at: string;
 }
 
 function strategyResultToBacktestResult(item: StrategyBacktestResult): BacktestResult {
-  const m = item.metrics || {};
-  return {
+  return buildBacktestResult({
     id: item.id,
     strategy_id: item.strategy_id,
-    stock_codes: item.stock_codes || [],
-    params: item.params || {},
-    start_date: item.start_date || '',
-    end_date: item.end_date || '',
-    metrics: {
-      total_return: m.total_return ?? 0,
-      ann_return: m.ann_return ?? 0,
-      ann_volatility: m.ann_volatility ?? 0,
-      sharpe: m.sharpe ?? 0,
-      sortino: m.sortino ?? 0,
-      max_drawdown: m.max_drawdown ?? 0,
-      calmar: m.calmar ?? 0,
-      win_rate: m.win_rate ?? 0,
-      years: m.years ?? 0,
-    },
-    equity_curve: item.equity_curve ?? [],
-    drawdown_curve: item.drawdown_curve ?? [],
-    benchmark_curve: item.benchmark_curve ?? undefined,
-    yearly_returns: item.yearly_returns ?? [],
-    monthly_returns: item.monthly_returns ?? [],
-    trades: (item.trades ?? []).map((t) => ({
-      date: t.date,
-      action: t.action as 'buy' | 'sell',
-      price: t.price,
-      quantity: t.quantity,
-      pnl: t.pnl,
-    })),
-    status: mapBacktestStatus(item.status),
-    created_at: item.created_at || '',
-  };
+    stock_codes: item.stock_codes,
+    params: item.params,
+    start_date: item.start_date,
+    end_date: item.end_date,
+    metrics: item.metrics,
+    equity_curve: item.equity_curve,
+    drawdown_curve: item.drawdown_curve,
+    benchmark_curve: item.benchmark_curve,
+    yearly_returns: item.yearly_returns,
+    monthly_returns: item.monthly_returns,
+    trades: item.trades,
+    status: item.status,
+    created_at: item.created_at,
+  });
 }
 
 export async function fetchBacktestResults(
