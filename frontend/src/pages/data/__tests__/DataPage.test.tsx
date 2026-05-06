@@ -44,7 +44,7 @@ vi.mock('@/components/data/RefreshButton', () => ({
 }));
 
 vi.mock('@/components/ui/Button', () => ({
-  Button: ({ children, onClick, disabled, variant, size }: Record<string, unknown>) => (
+  Button: ({ children, onClick, disabled }: Record<string, unknown>) => (
     <button onClick={onClick as () => void} disabled={disabled as boolean} data-testid="button">
       {children as string}
     </button>
