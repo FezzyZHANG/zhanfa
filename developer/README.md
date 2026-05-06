@@ -77,7 +77,7 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 | [042]  | CI pytest 失败 — max_age 测试与编码问题 | P1 - 高 | ✅ 已完成 | 041 |
 | [043]  | API 降级路径静默吞错缺少可观测性 | P1 - 高 | ✅ 已完成 | - |
 | [044]  | 移除 FastAPI 模块导入阶段的 init_db 副作用 | P1 - 高 | 📋 待开始 | 032 |
-| [045]  | Pydantic 模型可变默认值统一改为 default_factory | P1 - 高 | 📋 待开始 | - |
+| [045]  | Pydantic 模型可变默认值统一改为 default_factory | P1 - 高 | 🔨 进行中 | - |
 | [046]  | 前端 BacktestResult 映射函数去重 | P2 - 中 | 📋 待开始 | 034, 036 |
 | [047]  | StockInfo 前后端契约对齐 | P2 - 中 | 📋 待开始 | - |
 | [048]  | get_watchlist_quotes 批量行情查询性能优化 | P3 - 低 | 📋 待开始 | 043 |
