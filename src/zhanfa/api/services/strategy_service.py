@@ -142,19 +142,18 @@ def _resolve_code_ref(key: str) -> str | None:
     finally:
         session.close()
 
-    # Fallback for when DB isn't populated yet
+    # Fallback for when DB isn't populated — use auto-discovered registry
+    from zhanfa.strategies.registry import BUILTIN_CODE_REFS
 
-    _fallback: dict[str, str] = {
-        "sma_cross": "zhanfa.strategies.trend.sma_cross.SMACross",
-        "turtle": "zhanfa.strategies.trend.turtle.Turtle",
-        "rsi": "zhanfa.strategies.momentum.rsi_strategy.RSIStrategy",
-        "macd": "zhanfa.strategies.momentum.macd_strategy.MACDStrategy",
-        "low_pe": "zhanfa.strategies.fundamental.low_pe_strategy.LowPEStrategy",
-        "peg": "zhanfa.strategies.fundamental.peg_strategy.PEGStrategy",
-        "trend_fundamental": "zhanfa.strategies.composite.trend_fundamental.TrendFundamental",
-        "momentum_lowvol": "zhanfa.strategies.composite.momentum_lowvol.MomentumLowVol",
-    }
-    return _fallback.get(key)
+    for code_ref in BUILTIN_CODE_REFS:
+        if code_ref == key:
+            return code_ref
+        # Module path suffix match: e.g. key "sma_cross" matches "...sma_cross.SMACross"
+        module_path = code_ref.rsplit(".", 1)[0]  # zhanfa.strategies.trend.sma_cross
+        if module_path.endswith(f".{key}"):
+            return code_ref
+
+    return None
 
 
 def _strategy_to_dict(row: Strategy) -> dict[str, Any]:
