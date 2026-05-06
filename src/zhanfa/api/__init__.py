@@ -15,8 +15,6 @@ from zhanfa.api.routers import strategies, stocks, watchlists, backtest, schedul
 from zhanfa.db.base import init_db
 from zhanfa.db.register_strategies import register_strategies
 
-init_db()
-
 
 def _register_scheduler_tasks():
     """Register periodic tasks on the global scheduler."""
@@ -51,39 +49,59 @@ def _register_scheduler_tasks():
     t.start()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    registered = register_strategies()
-    if registered:
-        print(f"Registered {len(registered)} strategies: {registered}")
-    _register_scheduler_tasks()
-    yield
+def _make_lifespan(init_database: bool, start_scheduler: bool):
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if init_database:
+            init_db()
+            registered = register_strategies()
+            if registered:
+                print(f"Registered {len(registered)} strategies: {registered}")
+        if start_scheduler:
+            _register_scheduler_tasks()
+        yield
+    return lifespan
 
 
-app = FastAPI(
-    title="zhanfa API",
-    description="A股策略回测与验证平台 API",
-    version="0.1.0",
-    lifespan=lifespan,
-)
+def create_app(
+    *,
+    init_database: bool = True,
+    start_scheduler: bool = True,
+) -> FastAPI:
+    """Create a FastAPI application instance.
 
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    Args:
+        init_database: If True, initialize DB tables and register strategies on startup.
+        start_scheduler: If True, register and start background scheduler tasks on startup.
+    """
+    app = FastAPI(
+        title="zhanfa API",
+        description="A股策略回测与验证平台 API",
+        version="0.1.0",
+        lifespan=_make_lifespan(init_database, start_scheduler),
+    )
 
-app.include_router(strategies.router)
-app.include_router(stocks.router)
-app.include_router(watchlists.router)
-app.include_router(backtest.router)
-app.include_router(scheduler.router)
-app.include_router(data.router)
+    cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    app.include_router(strategies.router)
+    app.include_router(stocks.router)
+    app.include_router(watchlists.router)
+    app.include_router(backtest.router)
+    app.include_router(scheduler.router)
+    app.include_router(data.router)
+
+    @app.get("/api/health")
+    def health():
+        return {"status": "ok"}
+
+    return app
 
 
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
+app = create_app()
