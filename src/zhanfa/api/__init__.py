@@ -17,24 +17,29 @@ from zhanfa.db.register_strategies import register_strategies
 
 
 def _register_scheduler_tasks():
-    """Register periodic tasks on the global scheduler."""
+    """Register periodic tasks on the global scheduler.
+
+    Task times are read from Config (overridable via SCHEDULE_* env vars).
+    """
     from zhanfa.automation.scheduler import scheduler as sched
     from zhanfa.automation.workflows import (
         update_daily_data,
         update_minute_data,
         weekly_index_rebalance,
     )
+    from zhanfa.config import config
     from zhanfa.data.store import Store
 
-    # Daily data update at 15:30 (post market close)
-    sched.register_func("update_daily_data", "15:30", "daily", update_daily_data)
+    sched.register_func(
+        "update_daily_data", config.daily_update_time, "daily", update_daily_data,
+    )
 
-    # Weekly index rebalance on Friday after market close
     def _weekly_rebalance():
         weekly_index_rebalance("000300")
-    sched.register_func("weekly_index_rebalance", "16:00", "daily", _weekly_rebalance)
+    sched.register_func(
+        "weekly_index_rebalance", config.weekly_rebalance_time, "daily", _weekly_rebalance,
+    )
 
-    # Minute data update for cached stocks at 15:30
     def _update_minute():
         store = Store()
         codes = store.codes("minute_60") + store.codes("minute_30") + store.codes("minute_15")
@@ -42,9 +47,10 @@ def _register_scheduler_tasks():
         if codes:
             for period in ["60", "30", "15"]:
                 update_minute_data(codes, period)
-    sched.register_func("update_minute_data", "15:45", "daily", _update_minute)
+    sched.register_func(
+        "update_minute_data", config.minute_update_time, "daily", _update_minute,
+    )
 
-    # Start scheduler in background thread
     t = threading.Thread(target=sched.run_loop, daemon=True)
     t.start()
 
