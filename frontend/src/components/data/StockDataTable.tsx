@@ -89,11 +89,6 @@ export function StockDataTable({ data, loading }: Props) {
     }
   };
 
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return <span className="text-muted-foreground ml-1">↕</span>;
-    return <span className="ml-1">{sortAsc ? '↑' : '↓'}</span>;
-  };
-
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -131,23 +126,23 @@ export function StockDataTable({ data, loading }: Props) {
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('code')}>
-                    代码 <SortIcon col="code" />
+                    代码 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="code" />
                   </th>
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('name')}>
-                    名称 <SortIcon col="name" />
+                    名称 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="name" />
                   </th>
                   <th className="py-2 pr-3 whitespace-nowrap">自选组</th>
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('daily_end')}>
-                    日线截止 <SortIcon col="daily_end" />
+                    日线截止 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="daily_end" />
                   </th>
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('daily_rows')}>
-                    日线行数 <SortIcon col="daily_rows" />
+                    日线行数 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="daily_rows" />
                   </th>
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('financial_rows')}>
-                    财务行数 <SortIcon col="financial_rows" />
+                    财务行数 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="financial_rows" />
                   </th>
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('cached_at')}>
-                    缓存时间 <SortIcon col="cached_at" />
+                    缓存时间 <SortIcon sortKey={sortKey} sortAsc={sortAsc} col="cached_at" />
                   </th>
                 </tr>
               </thead>
@@ -186,6 +181,11 @@ export function StockDataTable({ data, loading }: Props) {
       </CardContent>
     </Card>
   );
+}
+
+function SortIcon({ col, sortKey, sortAsc }: { col: SortKey; sortKey: SortKey; sortAsc: boolean }) {
+  if (sortKey !== col) return <span className="text-muted-foreground ml-1">↕</span>;
+  return <span className="ml-1">{sortAsc ? '↑' : '↓'}</span>;
 }
 
 function isStale(dateStr: string): boolean {

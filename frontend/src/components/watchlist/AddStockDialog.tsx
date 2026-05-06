@@ -28,17 +28,16 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
 
   const { data: results = [], isLoading } = useSearchStocks(debounced);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery('');
-      setDebounced('');
-      setSelected(new Set());
-      setPasteMode(false);
-      setPasteText('');
-      setPreviewData(null);
-      setPreviewSelected(new Set());
-    }
-  }, [open]);
+  const handleClose = () => {
+    setQuery('');
+    setDebounced('');
+    setSelected(new Set());
+    setPasteMode(false);
+    setPasteText('');
+    setPreviewData(null);
+    setPreviewSelected(new Set());
+    onClose();
+  };
 
   if (!open) return null;
 
@@ -69,7 +68,7 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
   const handleConfirmPreview = () => {
     const codes = Array.from(previewSelected);
     if (codes.length > 0) onAdd(codes);
-    onClose();
+    handleClose();
   };
 
   const handleAdd = () => {
@@ -82,7 +81,7 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
     } else {
       const codes = Array.from(selected);
       if (codes.length > 0) onAdd(codes);
-      onClose();
+      handleClose();
     }
   };
 
@@ -95,14 +94,14 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleClose}>
       <div
         className="bg-card rounded-xl border border-border shadow-xl w-full max-w-md p-6 max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">添加股票</h3>
-          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>✕</button>
+          <button className="text-muted-foreground hover:text-foreground" onClick={handleClose}>✕</button>
         </div>
 
         <div className="flex gap-2 mb-4">
@@ -133,7 +132,7 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
                   onChange={(e) => setPasteText(e.target.value)}
                 />
                 <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border">
-                  <Button variant="ghost" onClick={onClose}>取消</Button>
+                  <Button variant="ghost" onClick={handleClose}>取消</Button>
                   <Button
                     onClick={handleAdd}
                     disabled={!pasteText.trim() || previewMut.isPending}
@@ -224,7 +223,7 @@ export function AddStockDialog({ open, onClose, onAdd, wlId }: AddStockDialogPro
               ))}
             </div>
             <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-border">
-              <Button variant="ghost" onClick={onClose}>取消</Button>
+              <Button variant="ghost" onClick={handleClose}>取消</Button>
               <Button
                 onClick={handleAdd}
                 disabled={selected.size === 0}

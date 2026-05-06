@@ -3,7 +3,7 @@
 import pandas as pd
 
 from zhanfa.strategies.base import BaseStrategy
-from zhanfa.strategies.indicators import donchian, atr
+from zhanfa.strategies.indicators import donchian
 
 
 class Turtle(BaseStrategy):

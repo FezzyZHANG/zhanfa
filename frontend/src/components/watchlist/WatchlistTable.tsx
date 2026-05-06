@@ -23,6 +23,23 @@ function freshnessLabel(freshness: string | undefined): string {
   return freshness;
 }
 
+function SortHeader({ label, sKey, sortKey, sortDir, onSort }: {
+  label: string;
+  sKey: SortKey;
+  sortKey: SortKey;
+  sortDir: 'asc' | 'desc';
+  onSort: (key: SortKey) => void;
+}) {
+  return (
+    <th
+      className="py-3 px-3 text-left text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+      onClick={() => onSort(sKey)}
+    >
+      {label} {sortKey === sKey ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+    </th>
+  );
+}
+
 function DataStatusIcon({ status, freshness }: { status: QuoteItem['data_status']; freshness?: string }) {
   if (!status) {
     return <span title="无数据" className="inline-block w-2.5 h-2.5 rounded-full bg-gray-400" />;
@@ -112,15 +129,6 @@ export function WatchlistTable({ quotes, onRemove, onBatchRemove, onEditNotes }:
     setSelected(new Set());
   };
 
-  const SortHeader = ({ label, sKey }: { label: string; sKey: SortKey }) => (
-    <th
-      className="py-3 px-3 text-left text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-      onClick={() => handleSort(sKey)}
-    >
-      {label} {sortKey === sKey ? (sortDir === 'asc' ? '↑' : '↓') : ''}
-    </th>
-  );
-
   return (
     <div>
       {/* Filter bar */}
@@ -176,13 +184,13 @@ export function WatchlistTable({ quotes, onRemove, onBatchRemove, onEditNotes }:
                 />
               </th>
               <th className="py-3 px-3 w-8" />
-              <SortHeader label="代码" sKey="code" />
-              <SortHeader label="名称" sKey="name" />
-              <SortHeader label="最新价" sKey="latest_price" />
-              <SortHeader label="涨跌幅" sKey="change_pct" />
-              <SortHeader label="PE" sKey="pe" />
-              <SortHeader label="PB" sKey="pb" />
-              <SortHeader label="股息率" sKey="dividend_yield" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="代码" sKey="code" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="名称" sKey="name" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="最新价" sKey="latest_price" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="涨跌幅" sKey="change_pct" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="PE" sKey="pe" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="PB" sKey="pb" />
+              <SortHeader sortKey={sortKey} sortDir={sortDir} onSort={handleSort} label="股息率" sKey="dividend_yield" />
               <th className="py-3 px-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">备注</th>
               <th className="py-3 px-3 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">操作</th>
             </tr>

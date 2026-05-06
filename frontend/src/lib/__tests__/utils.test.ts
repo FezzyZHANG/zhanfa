@@ -15,10 +15,12 @@ describe('cn', () => {
   });
 
   it('filters falsy values', () => {
+    // eslint-disable-next-line no-constant-binary-expression
     expect(cn('a', false && 'b', undefined, 'c')).toBe('a c');
   });
 
   it('handles conditional classes', () => {
+    // eslint-disable-next-line no-constant-binary-expression
     expect(cn('base', true && 'active', false && 'hidden')).toBe('base active');
   });
 

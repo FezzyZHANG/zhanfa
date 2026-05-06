@@ -143,14 +143,6 @@ def _resolve_code_ref(key: str) -> str | None:
         session.close()
 
     # Fallback for when DB isn't populated yet
-    from zhanfa.strategies.trend.sma_cross import SMACross
-    from zhanfa.strategies.trend.turtle import Turtle
-    from zhanfa.strategies.momentum.rsi_strategy import RSIStrategy
-    from zhanfa.strategies.momentum.macd_strategy import MACDStrategy
-    from zhanfa.strategies.fundamental.low_pe_strategy import LowPEStrategy
-    from zhanfa.strategies.fundamental.peg_strategy import PEGStrategy
-    from zhanfa.strategies.composite.trend_fundamental import TrendFundamental
-    from zhanfa.strategies.composite.momentum_lowvol import MomentumLowVol
 
     _fallback: dict[str, str] = {
         "sma_cross": "zhanfa.strategies.trend.sma_cross.SMACross",

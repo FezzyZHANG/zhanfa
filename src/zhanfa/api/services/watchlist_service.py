@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import csv as csv_module
 import logging
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -12,6 +13,9 @@ from sqlalchemy.orm import Session, joinedload
 from zhanfa.db.models import Stock, Watchlist, WatchlistItem
 from zhanfa.db.import_data import normalize_stock_code
 from zhanfa.data import Fetcher
+
+if TYPE_CHECKING:
+    from zhanfa.data.store import Store
 
 logger = logging.getLogger(__name__)
 

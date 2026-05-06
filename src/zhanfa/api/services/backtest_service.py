@@ -10,7 +10,6 @@ import asyncio
 import uuid
 from datetime import date, datetime, timezone
 
-import pandas as pd
 
 from zhanfa.data import Fetcher
 from zhanfa.data.pipeline import Pipeline

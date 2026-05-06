@@ -1,7 +1,7 @@
 """SQLAlchemy 引擎与会话工厂"""
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from zhanfa.config import config
 

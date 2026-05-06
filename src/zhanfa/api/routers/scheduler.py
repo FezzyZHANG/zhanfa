@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from zhanfa.api.models import SchedulerJob, SchedulerStatus, SchedulerTriggerRequest
 from zhanfa.automation.scheduler import scheduler
-from zhanfa.automation.workflows import update_daily_data, update_minute_data, weekly_index_rebalance
+from zhanfa.automation.workflows import update_daily_data, weekly_index_rebalance
 
 router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])
 
