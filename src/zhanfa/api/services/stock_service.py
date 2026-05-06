@@ -28,7 +28,29 @@ def get_stock_meta(code: str) -> dict | None:
     if match.empty:
         return None
     row = match.iloc[0]
-    result = {"code": str(row["code"]), "name": str(row["name"])}
+    result = {
+        "code": str(row["code"]),
+        "name": str(row["name"]),
+        "exchange": None,
+        "industry": None,
+        "market_cap": None,
+        "listed_date": None,
+    }
+
+    # Try DB for extended fields
+    try:
+        from zhanfa.db.base import SessionLocal
+        from zhanfa.db.models import Stock as StockModel
+        with SessionLocal() as s:
+            db_stock = s.query(StockModel).filter(StockModel.code == str(code)).first()
+            if db_stock:
+                result["exchange"] = db_stock.exchange
+                result["industry"] = db_stock.industry
+                result["market_cap"] = db_stock.market_cap
+                if db_stock.listed_date:
+                    result["listed_date"] = db_stock.listed_date.isoformat()
+    except Exception:
+        pass  # DB not available or not initialized
 
     try:
         fin = fetcher.financial(code)

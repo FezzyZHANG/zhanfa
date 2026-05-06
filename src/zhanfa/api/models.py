@@ -47,6 +47,10 @@ class StrategyUpdate(BaseModel):
 class StockInfo(BaseModel):
     code: str
     name: str
+    exchange: str | None = None
+    industry: str | None = None
+    market_cap: float | None = None  # 总市值（亿元）
+    listed_date: str | None = None
 
 
 class StockListResponse(BaseModel):
