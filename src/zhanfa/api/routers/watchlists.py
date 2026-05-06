@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from zhanfa.db.base import get_session
 from zhanfa.api.models import (
-    BatchPreviewResponse,
     StockSearchResult,
     WatchlistBatchAdd,
     WatchlistBatchDelete,

@@ -18,30 +18,30 @@ export function useWatchlistUrlFilters() {
 
   const setSort = (key: SortKey, dir: SortDir) => {
     navigate({
-      search: { ...search, sortKey: key, sortDir: dir },
+      search: { ...search, sortKey: key, sortDir: dir } as WatchlistSearchParams,
       replace: true,
-    } as any);
+    } as Parameters<typeof navigate>[0]);
   };
 
   const setSearchText = (text: string) => {
     navigate({
-      search: { ...search, search: text || '' },
+      search: { ...search, search: text || '' } as WatchlistSearchParams,
       replace: true,
-    } as any);
+    } as Parameters<typeof navigate>[0]);
   };
 
   const setPeRange = (min: string, max: string) => {
     navigate({
-      search: { ...search, peMin: min, peMax: max },
+      search: { ...search, peMin: min, peMax: max } as WatchlistSearchParams,
       replace: true,
-    } as any);
+    } as Parameters<typeof navigate>[0]);
   };
 
   const setChangeFilter = (dir: string) => {
     navigate({
-      search: { ...search, changeDir: dir },
+      search: { ...search, changeDir: dir } as WatchlistSearchParams,
       replace: true,
-    } as any);
+    } as Parameters<typeof navigate>[0]);
   };
 
   const applyFilters = (items: QuoteItem[]): QuoteItem[] => {

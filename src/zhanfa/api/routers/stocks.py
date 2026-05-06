@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from zhanfa.api.models import DailyResponse, FinancialResponse, IndicatorResponse, IndustryComparisonResponse, StockInfo, StockListResponse
+from zhanfa.api.models import DailyResponse, FinancialResponse, IndicatorResponse, IndustryComparisonResponse, StockListResponse
 from zhanfa.api.services import stock_service
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])

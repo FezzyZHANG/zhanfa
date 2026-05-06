@@ -350,7 +350,7 @@ export function KlineChart({
     return () => {
       // Don't remove chart on data change, just on unmount
     };
-  }, [data, indicators, indicatorConfigs, comparisonData, height, onCrosshairMove, onDateClick, onTimeScaleReady, cleanupSeries]);
+  }, [data, indicators, indicatorConfigs, comparisonData, height, onCrosshairMove, onDateClick, onTimeScaleReady, cleanupSeries, ref]);
 
   // Chart instance cleanup on unmount
   useEffect(() => {

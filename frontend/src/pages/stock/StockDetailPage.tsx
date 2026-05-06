@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { useStock } from '@/hooks/useStocks';
 import { useChartData } from '@/hooks/useChartData';
@@ -38,9 +38,22 @@ export function StockDetailPage() {
     y: number;
   }>({ data: null, x: 0, y: 0 });
   const [clickedDate, setClickedDate] = useState<string | null>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
+  const [mainTimeScale, setMainTimeScale] = useState<IndicatorTimeScale | undefined>(undefined);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const timeScaleRef = useRef<IndicatorTimeScale | null>(null);
+
+  useEffect(() => {
+    const el = chartContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const { data: stock, isLoading: stockLoading } = useStock(code);
   const chartResult = useChartData(code, freq);
@@ -68,7 +81,7 @@ export function StockDetailPage() {
 
   const handleTimeScaleReady = useCallback(
     (ts: { subscribeVisibleTimeRangeChange: (handler: (range: unknown) => void) => () => void }) => {
-      timeScaleRef.current = ts as IndicatorTimeScale;
+      setMainTimeScale(ts as IndicatorTimeScale);
     },
     [],
   );
@@ -136,7 +149,7 @@ export function StockDetailPage() {
                   visible={crosshair.data !== null}
                   x={crosshair.x}
                   y={crosshair.y}
-                  containerWidth={chartContainerRef.current?.clientWidth ?? 800}
+                  containerWidth={containerWidth}
                 />
               </div>
             ) : (
@@ -157,7 +170,7 @@ export function StockDetailPage() {
                 type="MACD"
                 data={chartDataWithTime}
                 macd={indicatorsData.macd}
-                mainTimeScale={timeScaleRef.current ?? undefined}
+                mainTimeScale={mainTimeScale}
               />
             </CardContent>
           </Card>
@@ -175,7 +188,7 @@ export function StockDetailPage() {
                 type="RSI"
                 data={chartDataWithTime}
                 rsi={indicatorsData.rsi}
-                mainTimeScale={timeScaleRef.current ?? undefined}
+                mainTimeScale={mainTimeScale}
               />
             </CardContent>
           </Card>

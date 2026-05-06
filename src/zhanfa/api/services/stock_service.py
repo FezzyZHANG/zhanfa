@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from zhanfa.data import Fetcher, Store
+from zhanfa.data import Fetcher
 from zhanfa.data.pipeline import Pipeline
 from zhanfa.strategies import indicators as ind
 

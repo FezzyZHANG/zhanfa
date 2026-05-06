@@ -111,8 +111,6 @@ def _format_signal_conditions(params: dict, signals: pd.Series | None) -> tuple[
 
     # 根据参数名推断策略类型，给出更具体的提示
     has_macd = all(k in params for k in ("fast", "slow"))
-    has_rsi = "period" in params and "oversold" in params or "overbought" in params
-    has_ma = "period" in params and len(params) <= 3
 
     if has_macd:
         fast = params.get("fast", 12)

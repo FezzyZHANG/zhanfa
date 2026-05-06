@@ -18,9 +18,9 @@ export function StrategiesPage() {
   const [filter, setFilter] = useState<StrategyCategory | 'all'>('all');
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
-  const strategies = Array.isArray(strategiesData) ? (strategiesData as Strategy[]) : [];
 
   const filtered = useMemo(() => {
+    const strategies = Array.isArray(strategiesData) ? (strategiesData as Strategy[]) : [];
     let result = filter === 'all'
       ? strategies
       : strategies.filter((s) => s.category === filter);
@@ -34,7 +34,7 @@ export function StrategiesPage() {
       );
     }
     return result;
-  }, [strategies, filter, search]);
+  }, [strategiesData, filter, search]);
 
   return (
     <div>

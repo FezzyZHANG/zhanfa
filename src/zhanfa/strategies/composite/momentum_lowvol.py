@@ -1,6 +1,5 @@
 """动量+低波多因子策略"""
 
-import numpy as np
 import pandas as pd
 
 from zhanfa.strategies.base import BaseStrategy

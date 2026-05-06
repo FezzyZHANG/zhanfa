@@ -7,8 +7,6 @@ from datetime import date
 
 from fastapi import APIRouter, Query
 
-logger = logging.getLogger(__name__)
-
 from zhanfa.api.models import (
     CacheStats,
     DataStats,
@@ -25,6 +23,8 @@ from zhanfa.data.store import Store
 from zhanfa.db.base import SessionLocal
 from zhanfa.db.import_data import import_stocks
 from zhanfa.db.models import BacktestResult, Stock, StockFinancial, Strategy, Watchlist
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
