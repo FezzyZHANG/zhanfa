@@ -1,11 +1,14 @@
 """本地数据缓存 - 基于 parquet 格式"""
 
+import logging
 import os
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 import pyarrow.parquet as pq
+
+logger = logging.getLogger(__name__)
 
 
 class Store:
@@ -30,7 +33,11 @@ class Store:
             mtime = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
             if datetime.now(timezone.utc) - mtime > max_age:
                 return None
-        return pd.read_parquet(path)
+        try:
+            return pd.read_parquet(path)
+        except Exception:
+            logger.warning("Failed to read parquet file (possibly corrupted): %s", path, exc_info=True)
+            return None
 
     def exists(self, code: str, freq: str = "daily") -> bool:
         return self._path(code, freq).exists()
