@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import csv as csv_module
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session, joinedload
 from zhanfa.db.models import Stock, Watchlist, WatchlistItem
 from zhanfa.db.import_data import normalize_stock_code
 from zhanfa.data import Fetcher
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_WL_NAME = "默认"
@@ -176,7 +179,7 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
             for st in result.scalars():
                 names[st.code] = st.name
         except Exception:
-            pass
+            logger.exception("Failed to query stock names in batch_add_preview (codes=%s)", codes)
 
     # Check other watchlists
     preview = []
@@ -202,7 +205,7 @@ def batch_add_preview(db: Session, wl_id: int, codes: list[str]) -> dict | None:
             ).fetchall()
             in_other = [r[0] for r in rows]
         except Exception:
-            pass
+            logger.exception("Failed to query other watchlists in batch_add_preview (code=%s, wl_id=%s)", code, wl_id)
 
         preview.append({
             "code": code,
@@ -272,7 +275,7 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
             for st in result.scalars():
                 names[st.code] = st.name
         except Exception:
-            pass
+            logger.exception("Failed to query stock names for quotes (codes=%s)", codes)
 
     items = []
     for item in wl.items:
@@ -323,7 +326,7 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
                     data_status["daily_start"] = df.index[0].date() if hasattr(df.index[0], "date") else None
                     data_status["daily_end"] = df.index[-1].date() if hasattr(df.index[-1], "date") else None
         except Exception:
-            pass
+            logger.warning("Failed to read daily data for quotes (code=%s)", code, exc_info=True)
 
         # ── Financial: cache-first ──
         try:
@@ -342,7 +345,7 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
                     data_status["has_financial"] = True
                     data_status["financial_periods"] = len(fin)
         except Exception:
-            pass
+            logger.warning("Failed to read financial data for quotes (code=%s)", code, exc_info=True)
 
         items.append({
             "code": code,
@@ -409,7 +412,7 @@ def export_csv(db: Session, wl_id: int) -> str | None:
             if stock:
                 name = stock.name
         except Exception:
-            pass
+            logger.warning("Failed to get stock name for CSV export (code=%s)", item.code, exc_info=True)
         writer.writerow([item.code, name, item.notes or "", item.added_at.isoformat() if item.added_at else ""])
 
     return output.getvalue()
@@ -461,7 +464,7 @@ def _ensure_stock(db: Session, code: str) -> None:
         if not match.empty:
             name = str(match.iloc[0]["name"])
     except Exception:
-        pass
+        logger.warning("Failed to resolve stock name via akshare in _ensure_stock (code=%s)", code, exc_info=True)
     db.add(Stock(
         code=code,
         name=name or code,

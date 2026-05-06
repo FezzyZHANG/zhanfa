@@ -97,6 +97,41 @@ def test_stock_status_nonexistent(client):
             assert data["in_watchlist"] == []
 
 
+def test_stock_status_corrupted_cache_returns_200_and_logs(client, caplog):
+    """Corrupted parquet cache should degrade gracefully — 200 + warning log."""
+    import logging
+    from zhanfa.data.store import Store
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        base = Path(tmp)
+        (base / "daily").mkdir()
+        # Write corrupted content that won't parse as parquet
+        (base / "daily" / "000001.parquet").write_text("not a parquet file")
+
+        # Create stock_list meta for name resolution
+        (base / "meta").mkdir()
+        sl = pd.DataFrame({"code": ["000001"], "name": ["平安银行"]})
+        sl.to_parquet(base / "meta" / "stock_list.parquet", index=False)
+
+        real = Store(str(tmp))
+        with patch("zhanfa.api.routers.data.Store", return_value=real):
+            with caplog.at_level(logging.WARNING):
+                r = client.get("/api/data/stock-status?code=000001")
+                assert r.status_code == 200
+                data = r.json()
+                # store.exists() sees the file, so has_daily is set True before
+                # the parquet read fails; the date fields remain unset (degraded)
+                assert data["has_daily"] is True
+                assert data["daily_start"] is None
+                assert data["daily_end"] is None
+
+        # Log should contain the warning with code context
+        warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("000001" in msg and "daily" in msg.lower() for msg in warnings), (
+            f"Expected warning with code=000001 and freq=daily, got: {warnings}"
+        )
+
+
 # ── Refresh ──────────────────────────────────────────────
 
 

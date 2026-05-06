@@ -387,6 +387,58 @@ class TestGetWatchlistQuotes:
             assert item["data_freshness"] == "unknown"
             assert item["data_status"]["has_daily"] is False
 
+    def test_partial_failure_logs_code_and_preserves_other_stocks(self, db_with_stock, caplog):
+        """When one stock's daily fetch fails, others still get data; log includes code."""
+        import logging
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        wl = create_watchlist(db_with_stock, "Test")
+        add_item(db_with_stock, wl["id"], "000001")
+        add_item(db_with_stock, wl["id"], "600519")
+
+        def daily_side_effect(code):
+            if code == "000001":
+                raise RuntimeError("network error")
+            return pd.DataFrame({
+                "open": [10.0], "high": [11.0], "low": [9.0], "close": [10.5], "volume": [1000],
+            })
+
+        mock_fetcher = MagicMock()
+        mock_fetcher.daily.side_effect = daily_side_effect
+        mock_fetcher.financial.return_value = pd.DataFrame(
+            {"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]}
+        )
+
+        mock_store = MagicMock()
+        mock_store.last_close.return_value = None  # force Fetcher fallback
+        mock_store.date_range.return_value = None
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            with caplog.at_level(logging.WARNING):
+                result = get_watchlist_quotes(db_with_stock, wl["id"])
+
+        assert result is not None
+        assert len(result["items"]) == 2
+
+        # Stock 000001 failed — should have no price data
+        item_failed = [i for i in result["items"] if i["code"] == "000001"][0]
+        assert item_failed["latest_price"] is None
+        assert item_failed["data_freshness"] == "unknown"
+
+        # Stock 600519 succeeded — should have price data
+        item_ok = [i for i in result["items"] if i["code"] == "600519"][0]
+        assert item_ok["latest_price"] == 10.5
+        assert item_ok["data_freshness"] == "live"
+
+        # Log should contain the failing code
+        warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("000001" in msg for msg in warnings), (
+            f"Expected warning with failing code=000001, got: {warnings}"
+        )
+
 
 class TestAddItemEdgeCases:
     def test_add_with_notes_on_first_add(self, db_with_stock):
