@@ -23,8 +23,16 @@ class Config:
     commission: float = 0.0005  # 手续费率
     slippage: float = 0.001  # 滑点
 
-    # 自动化
-    update_hour: int = 17  # 每日几点更新数据
+    # 自动化 — 调度任务时间（可环境变量覆盖）
+    daily_update_time: str = field(
+        default_factory=lambda: os.getenv("SCHEDULE_DAILY_UPDATE", "15:30")
+    )
+    minute_update_time: str = field(
+        default_factory=lambda: os.getenv("SCHEDULE_MINUTE_UPDATE", "15:45")
+    )
+    weekly_rebalance_time: str = field(
+        default_factory=lambda: os.getenv("SCHEDULE_WEEKLY_REBALANCE", "16:00")
+    )
 
 
 config = Config()
