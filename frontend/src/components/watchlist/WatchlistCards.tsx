@@ -52,7 +52,18 @@ import { formatNumber, formatPercent } from '@/lib/utils';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/Button';
 
-function DataStatusBadge({ status }: { status: QuoteItem['data_status'] }) {
+function freshnessLabel(freshness: string | undefined): string {
+  if (!freshness || freshness === 'unknown') return '未知';
+  if (freshness === 'live') return '实时';
+  if (freshness === 'stale') return '已过期';
+  if (freshness.startsWith('cached_')) {
+    const suffix = freshness.slice(7);
+    return `缓存 ${suffix}`;
+  }
+  return freshness;
+}
+
+function DataStatusBadge({ status, freshness }: { status: QuoteItem['data_status']; freshness?: string }) {
   if (!status) {
     return <span title="无数据" className="inline-block w-2.5 h-2.5 rounded-full bg-gray-400" />;
   }
@@ -70,6 +81,7 @@ function DataStatusBadge({ status }: { status: QuoteItem['data_status'] }) {
   const details = [
     has_daily && daily_start && daily_end ? `日线: ${daily_start} ~ ${daily_end}` : '',
     has_financial ? `财务: ${financial_periods} 期` : '',
+    freshness ? `新鲜度: ${freshnessLabel(freshness)}` : '',
   ].filter(Boolean).join('\n');
 
   return (
@@ -99,7 +111,7 @@ export function WatchlistCards({ quotes, onRemove }: WatchlistCardsProps) {
           <div className="flex items-start justify-between mb-2">
             <div>
               <div className="flex items-center gap-2">
-                <DataStatusBadge status={item.data_status} />
+                <DataStatusBadge status={item.data_status} freshness={item.data_freshness} />
                 <span className="font-semibold">{item.name || item.code}</span>
               </div>
               <div className="text-xs text-muted-foreground">{item.code}</div>

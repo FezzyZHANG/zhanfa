@@ -14,6 +14,22 @@ function fmtNum(n: number): string {
   return n.toLocaleString();
 }
 
+function fmtRelativeTime(isoStr: string | null): string {
+  if (!isoStr) return '—';
+  const now = Date.now();
+  const then = new Date(isoStr).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin} 分钟前`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour} 小时前`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 30) return `${diffDay} 天前`;
+  const diffMonth = Math.floor(diffDay / 30);
+  return `${diffMonth} 月前`;
+}
+
 interface Props {
   stats: DataStats;
   totalStocks: number;
@@ -51,15 +67,16 @@ export function DataStatsCards({ stats, totalStocks }: Props) {
           </p>
         </Card>
 
-        {/* 财务数据 */}
+        {/* 缓存更新 */}
         <Card className="p-4">
-          <p className="text-xs text-muted-foreground mb-1">财务数据</p>
+          <p className="text-xs text-muted-foreground mb-1">缓存更新</p>
           <p className="text-xl font-bold text-foreground">
-            {database.financial_count.toLocaleString()}
-            <span className="text-sm font-normal text-muted-foreground ml-1">条</span>
+            {fmtRelativeTime(cache.last_refreshed_at)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            覆盖 {(cache.freq_stats?.financial ?? 0).toLocaleString()} 只股票
+            {cache.last_refreshed_at
+              ? new Date(cache.last_refreshed_at).toLocaleString('zh-CN')
+              : '从未更新'}
           </p>
         </Card>
 

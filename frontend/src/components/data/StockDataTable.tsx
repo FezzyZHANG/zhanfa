@@ -8,8 +8,24 @@ interface Props {
   loading?: boolean;
 }
 
-type SortKey = 'code' | 'name' | 'daily_rows' | 'daily_end' | 'financial_rows';
+type SortKey = 'code' | 'name' | 'daily_rows' | 'daily_end' | 'financial_rows' | 'cached_at';
 type SortValue = string | number;
+
+function fmtRelativeTime(isoStr: string | null): string {
+  if (!isoStr) return '—';
+  const now = Date.now();
+  const then = new Date(isoStr).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin}分钟`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}小时`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 30) return `${diffDay}天`;
+  const diffMonth = Math.floor(diffDay / 30);
+  return `${diffMonth}月`;
+}
 
 export function StockDataTable({ data, loading }: Props) {
   const navigate = useNavigate();
@@ -48,6 +64,9 @@ export function StockDataTable({ data, loading }: Props) {
       } else if (sortKey === 'daily_rows') {
         va = a.daily_rows;
         vb = b.daily_rows;
+      } else if (sortKey === 'cached_at') {
+        va = a.daily_cached_at ?? '';
+        vb = b.daily_cached_at ?? '';
       } else if (sortKey === 'name') {
         va = a.name;
         vb = b.name;
@@ -127,6 +146,9 @@ export function StockDataTable({ data, loading }: Props) {
                   <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('financial_rows')}>
                     财务行数 <SortIcon col="financial_rows" />
                   </th>
+                  <th className="py-2 pr-3 cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('cached_at')}>
+                    缓存时间 <SortIcon col="cached_at" />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -152,6 +174,9 @@ export function StockDataTable({ data, loading }: Props) {
                     </td>
                     <td className="py-2 pr-3">{s.has_daily ? s.daily_rows.toLocaleString() : '—'}</td>
                     <td className="py-2 pr-3">{s.has_financial ? s.financial_rows.toLocaleString() : <span className="text-red-500">无</span>}</td>
+                    <td className="py-2 pr-3 text-muted-foreground text-[11px]">
+                      {s.daily_cached_at ? fmtRelativeTime(s.daily_cached_at) : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

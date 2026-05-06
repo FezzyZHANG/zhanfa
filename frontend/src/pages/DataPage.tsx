@@ -62,6 +62,7 @@ export function DataPage() {
       date_range_start: null,
       date_range_end: null,
       freq_stats: {},
+      last_refreshed_at: null,
     },
     database: {
       stock_count: 0,

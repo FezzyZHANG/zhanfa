@@ -259,6 +259,56 @@ def test_refresh_invalid_freq_returns_400(client):
 
 
 
+# ── Stats with last_refreshed_at ──────────────────────────
+
+
+def test_stats_includes_last_refreshed_at(client):
+    r = client.get("/api/data/stats")
+    assert r.status_code == 200
+    data = r.json()
+    assert "last_refreshed_at" in data["cache"]
+
+
+# ── Stock Status with cached_at ───────────────────────────
+
+
+def test_stock_status_includes_cached_at(client):
+    from zhanfa.data.store import Store
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        (base / "daily").mkdir()
+        dates = pd.date_range("2024-01-01", periods=5, freq="B")
+        df = pd.DataFrame({"close": 1.0}, index=dates)
+        df.to_parquet(base / "daily" / "000001.parquet", index=True)
+
+        (base / "meta").mkdir()
+        sl = pd.DataFrame({"code": ["000001"], "name": ["平安银行"]})
+        sl.to_parquet(base / "meta" / "stock_list.parquet", index=False)
+
+        real = Store(str(tmp))
+        with patch("zhanfa.api.routers.data.Store", return_value=real):
+            r = client.get("/api/data/stock-status?code=000001")
+            assert r.status_code == 200
+            data = r.json()
+            assert "daily_cached_at" in data
+            assert "financial_cached_at" in data
+            assert data["daily_cached_at"] is not None
+
+
+# ── Scheduler status ─────────────────────────────────────
+
+
+def test_scheduler_status_includes_jobs(client):
+    r = client.get("/api/scheduler/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert "jobs" in data
+    assert "running" in data
+    assert "last_errors" in data
+    assert isinstance(data["last_errors"], list)
+
+
 # ── OpenAPI ──────────────────────────────────────────────
 
 

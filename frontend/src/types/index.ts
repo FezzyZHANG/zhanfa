@@ -221,6 +221,7 @@ export interface CacheStats {
   date_range_start: string | null;
   date_range_end: string | null;
   freq_stats: Record<string, number>;
+  last_refreshed_at: string | null;
 }
 
 export interface DBStats {
@@ -243,10 +244,12 @@ export interface StockDataStatus {
   daily_start: string | null;
   daily_end: string | null;
   daily_rows: number;
+  daily_cached_at: string | null;
   has_financial: boolean;
   financial_start: string | null;
   financial_end: string | null;
   financial_rows: number;
+  financial_cached_at: string | null;
   in_watchlist: string[];
 }
 

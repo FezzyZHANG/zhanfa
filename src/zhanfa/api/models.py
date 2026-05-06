@@ -306,6 +306,8 @@ class SchedulerJob(BaseModel):
 class SchedulerStatus(BaseModel):
     jobs: list[SchedulerJob]
     running: bool = False
+    last_errors: list[dict] = []
+    next_run: dict[str, str | None] = {}
 
 
 class SchedulerTriggerRequest(BaseModel):
@@ -323,6 +325,7 @@ class CacheStats(BaseModel):
     date_range_start: date | None = None
     date_range_end: date | None = None
     freq_stats: dict[str, int] = {}
+    last_refreshed_at: datetime | None = None
 
 
 class DBStats(BaseModel):
@@ -343,6 +346,7 @@ class MinuteCacheStatus(BaseModel):
     start: date | None = None
     end: date | None = None
     rows: int = 0
+    cached_at: datetime | None = None
 
 
 class StockDataStatus(BaseModel):
@@ -352,10 +356,12 @@ class StockDataStatus(BaseModel):
     daily_start: date | None = None
     daily_end: date | None = None
     daily_rows: int = 0
+    daily_cached_at: datetime | None = None
     has_financial: bool = False
     financial_start: date | None = None
     financial_end: date | None = None
     financial_rows: int = 0
+    financial_cached_at: datetime | None = None
     minute_60: MinuteCacheStatus = MinuteCacheStatus()
     minute_30: MinuteCacheStatus = MinuteCacheStatus()
     minute_15: MinuteCacheStatus = MinuteCacheStatus()

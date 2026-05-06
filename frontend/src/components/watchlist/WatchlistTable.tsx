@@ -12,7 +12,18 @@ interface WatchlistTableProps {
   onEditNotes: (code: string, currentNotes: string | null) => void;
 }
 
-function DataStatusIcon({ status }: { status: QuoteItem['data_status'] }) {
+function freshnessLabel(freshness: string | undefined): string {
+  if (!freshness || freshness === 'unknown') return '未知';
+  if (freshness === 'live') return '实时';
+  if (freshness === 'stale') return '已过期';
+  if (freshness.startsWith('cached_')) {
+    const suffix = freshness.slice(7); // e.g. "1h", "3d"
+    return `缓存 ${suffix}`;
+  }
+  return freshness;
+}
+
+function DataStatusIcon({ status, freshness }: { status: QuoteItem['data_status']; freshness?: string }) {
   if (!status) {
     return <span title="无数据" className="inline-block w-2.5 h-2.5 rounded-full bg-gray-400" />;
   }
@@ -30,6 +41,7 @@ function DataStatusIcon({ status }: { status: QuoteItem['data_status'] }) {
   const details = [
     has_daily && daily_start && daily_end ? `日线: ${daily_start} ~ ${daily_end}` : '',
     has_financial ? `财务: ${financial_periods} 期` : '',
+    freshness ? `新鲜度: ${freshnessLabel(freshness)}` : '',
   ].filter(Boolean).join('\n');
 
   return (
@@ -191,7 +203,7 @@ export function WatchlistTable({ quotes, onRemove, onBatchRemove, onEditNotes }:
                   />
                 </td>
                 <td className="py-3 px-3">
-                  <DataStatusIcon status={item.data_status} />
+                  <DataStatusIcon status={item.data_status} freshness={item.data_freshness} />
                 </td>
                 <td className="py-3 px-3 font-mono text-xs">{item.code}</td>
                 <td className="py-3 px-3 font-medium">{item.name || '--'}</td>

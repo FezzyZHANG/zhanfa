@@ -95,6 +95,26 @@ cd frontend && npm run build  # 修复后通过；仍有 Vite chunk size warning
 
 **数据滚动**: Sina 的 1,970 行固定窗口会随交易日滚动。首次拉取只能拿到最近窗口，需持续 T+1 更新才能累积更长历史。
 
+## parquet 缓存无过期机制导致读到截断/过期数据
+
+**症状**: `Fetcher.stock_list()` 只返回 2 行（000001 和 000002），而实际全 A 股有 5500+ 行。`index_components()`、`industry_stocks()` 等 meta 类数据也可能长期不更新。
+
+**原因**: `Store` 的 parquet 缓存没有 TTL 机制 — 一旦文件存在，`load()` 永远返回缓存内容，不会重新拉取。如果某次运行中写入了截断的 DataFrame（比如中断的下载、调试代码只 `head()` 了前几行），后续所有调用都会命中这份坏的缓存。
+
+**已修复 (TICKET-041)**:
+- `Store.load()` 新增 `max_age: timedelta | None` 参数，基于文件 mtime 判断过期
+- `Store.mtime()` 返回缓存文件最后修改时间（UTC）
+- `Fetcher` 各方法配置默认 TTL（通过环境变量可覆盖）：
+  - `daily()` → 6h (`CACHE_TTL_DAILY_HOURS`)
+  - `index_daily()` → 6h (`CACHE_TTL_INDEX_DAILY_HOURS`)
+  - `stock_list()` → 24h (`CACHE_TTL_STOCK_LIST_HOURS`)
+  - `index_components()` → 24h (`CACHE_TTL_INDEX_COMPONENTS_HOURS`)
+  - `industry_stocks()` → 24h (`CACHE_TTL_INDUSTRY_STOCKS_HOURS`)
+  - `financial()` → 30d (`CACHE_TTL_FINANCIAL_HOURS`)
+  - `minute()` → 6h (`CACHE_TTL_MINUTE_HOURS`)
+- 缓存完整性校验：`stock_list()` 要求 ≥5000 行，`daily()` 要求 ≥1 行；坏缓存自动删除并重新拉取
+- 调度器自动刷新：15:30 更新日线、15:45 更新分钟线、周五 16:00 指数调仓
+
 ## 数据初始化与自选股外键
 
 **症状**: 空数据库环境中，股票搜索能从 akshare 返回结果，但添加到自选股时报外键错误；数据管理页统计长期为 0。
@@ -118,3 +138,51 @@ curl http://127.0.0.1:8000/api/strategies      # 策略列表
 curl http://127.0.0.1:8000/api/strategies/1     # 策略详情
 curl http://127.0.0.1:8000/api/health           # 健康检查
 ```
+
+## 2026-05-06 仓库问题复查与工单拆分
+
+本次复查确认用户列出的 6 类问题仍可在当前代码中定位，并额外发现 2 个同源风险，已拆为独立需求工单：
+
+- `TICKET-043`: API 降级路径静默吞错缺少可观测性。覆盖 `watchlist_service` 与 `data` router 中的 `except Exception: pass`。
+- `TICKET-044`: 移除 FastAPI 模块导入阶段的 `init_db()` 副作用。
+- `TICKET-045`: Pydantic 模型可变默认值统一改为 `Field(default_factory=...)`，不只 `MinuteCacheStatus()`，还包括多个 `{}` / `[]` 字段默认值。
+- `TICKET-046`: 前端 `BacktestResult` 三个映射函数去重，降低字段扩展遗漏风险。
+- `TICKET-047`: `StockInfo` 前后端契约对齐。后端只返回 `code/name`，前端要求 `exchange/industry/market_cap/listed_date`。
+- `TICKET-048`: `get_watchlist_quotes()` 批量行情查询性能优化，避免自选股多时逐只串行读取/抓取。
+- `TICKET-049`: 行业比较接口逐股抓取财务数据导致响应慢。
+- `TICKET-050`: 回测结果持久化失败缺少日志与失败语义。
+
+复查命令记录：
+
+```bash
+Get-ChildItem -Recurse -Include *.py -Path src | Select-String -Pattern 'except','pass'
+Get-ChildItem -Recurse -Include *.py,*.ts,*.tsx -Path src,frontend | Select-String -Pattern 'init_db\(','MinuteCacheStatus','ToResult','StockInfo','get_watchlist_quotes'
+Get-ChildItem -Recurse -Include *.py -Path src | Select-String -Pattern '= \{\}|= \[\]|= [A-Za-z_][A-Za-z0-9_]*\(\)'
+```
+
+## 2026-05-06 中台全量代码审查报告对接
+
+已对接 `developer/auto-code-review/report_full_20260506.md` 中提出的问题。覆盖关系如下：
+
+| 报告问题 | 对应工单 | 备注 |
+|----------|----------|------|
+| 静默吞错加日志 | `TICKET-043` | P1，覆盖 `watchlist_service` 与 `data` router |
+| `init_db()` import 副作用 | `TICKET-044` | P1，迁入 FastAPI lifespan 或 app factory |
+| `MinuteCacheStatus()` 可变默认值 | `TICKET-045` | P1，同时覆盖其他 `{}` / `[]` 默认值 |
+| 前端三个回测结果 mapper 重复 | `TICKET-046` | P2，含 trade action 类型保护 |
+| `StockInfo` 前后端契约不一致 | `TICKET-047` | P2，含 `fetchStock()` 硬填字段问题 |
+| `get_watchlist_quotes()` N+1 | `TICKET-048` | P3 |
+| 日期格式双轨制 | `TICKET-051` | P2，统一由后端 validator 处理 |
+| `Config.update_hour` 与实际调度时间不一致 | `TICKET-052` | P2 |
+| 策略注册 fallback 双轨制 | `TICKET-053` | P3 |
+| scheduler/parquet/backtest/DataPage/图表测试缺口 | `TICKET-054` | P2，合并为关键链路与降级测试 |
+| Docker frontend 未等待 backend healthy | `TICKET-055` | P3 |
+| pre-commit 缺 mypy/eslint | `TICKET-056` | P4 |
+| release checklist 与 environment 文档缺口 | `TICKET-057` | P4 |
+| 行业比较逐股抓财务数据 | `TICKET-049` | P3，本次复查额外发现，与报告 fan-out 风险同类 |
+| 回测持久化失败吞日志 | `TICKET-050` | P2，本次复查额外发现 |
+
+两处报告内容按当前代码核对后未重复开工单：
+
+- 报告称 `_register_scheduler_tasks()` 顶层启动后台线程；当前代码中线程启动发生在 `lifespan()` 调用链内，真正仍需处理的是调度时间配置化，见 `TICKET-052`。
+- 报告建议 CI npm cache；当前 `.github/workflows/ci.yml` 已使用 `actions/setup-node@v4` 的 `cache: npm` 和 `cache-dependency-path: frontend/package-lock.json`，暂不拆工单。

@@ -234,6 +234,24 @@ def batch_delete_items(db: Session, wl_id: int, codes: list[str]) -> int:
 # ── Quotes ─────────────────────────────────────────
 
 
+def _compute_freshness(store: "Store", code: str, freq: str) -> str:
+    """Return a human-readable freshness label based on cache mtime."""
+    mtime = store.mtime(code, freq)
+    if mtime is None:
+        return "unknown"
+    from datetime import datetime, timezone
+    age = datetime.now(timezone.utc) - mtime
+    hours = age.total_seconds() / 3600
+    if hours < 1:
+        return "cached_1h"
+    if hours < 24:
+        return f"cached_{int(hours)}h"
+    days = hours / 24
+    if days < 7:
+        return f"cached_{int(days)}d"
+    return "stale"
+
+
 def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
     wl = db.get(Watchlist, wl_id)
     if wl is None:
@@ -280,7 +298,7 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
             if close_info:
                 latest_price = float(close_info["close"])
                 data_status["has_daily"] = True
-                data_freshness = "cached"
+                data_freshness = _compute_freshness(store, code, "daily")
                 prev_close = close_info.get("prev_close")
                 if prev_close and prev_close != 0:
                     change_pct = (latest_price - float(prev_close)) / float(prev_close)

@@ -69,6 +69,7 @@ def get_stats():
         date_range_start=raw["date_range"]["start"],
         date_range_end=raw["date_range"]["end"],
         freq_stats=raw["freq_stats"],
+        last_refreshed_at=raw.get("last_refreshed_at"),
     )
     return DataStats(cache=cache, database=_db_stats())
 
@@ -94,6 +95,7 @@ def get_stock_status(code: str = Query(...)):
             result.daily_start = s
             result.daily_end = e
             result.daily_rows = rows
+            result.daily_cached_at = store.mtime(code, "daily")
     except Exception:
         pass
 
@@ -105,6 +107,7 @@ def get_stock_status(code: str = Query(...)):
             result.financial_start = s
             result.financial_end = e
             result.financial_rows = rows
+            result.financial_cached_at = store.mtime(code, "financial")
     except Exception:
         pass
 
@@ -117,6 +120,7 @@ def get_stock_status(code: str = Query(...)):
                 setattr(getattr(result, attr), "start", s)
                 setattr(getattr(result, attr), "end", e)
                 setattr(getattr(result, attr), "rows", rows)
+                setattr(getattr(result, attr), "cached_at", store.mtime(code, freq))
         except Exception:
             pass
 

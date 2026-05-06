@@ -277,9 +277,12 @@ class TestGetWatchlistQuotes:
         mock_fetcher = MagicMock()
         mock_fetcher.financial.return_value = mock_fin
 
+        from datetime import datetime, timedelta, timezone
+
         mock_store = MagicMock()
         mock_store.last_close.return_value = {"close": 1685.5, "prev_close": 1650.0}
         mock_store.date_range.return_value = {"start": None, "end": None, "rows": 100}
+        mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -291,8 +294,113 @@ class TestGetWatchlistQuotes:
             assert item["latest_price"] == 1685.5
             assert item["change_pct"] == pytest.approx((1685.5 - 1650.0) / 1650.0)
             assert item["data_status"]["has_daily"] is True
-            assert item["data_freshness"] == "cached"
+            assert item["data_freshness"] == "cached_2h"
 
     def test_returns_none_for_missing_wl(self, db_session):
         from zhanfa.api.services.watchlist_service import get_watchlist_quotes
         assert get_watchlist_quotes(db_session, 99999) is None
+
+    def test_empty_watchlist_returns_empty_items(self, db_session):
+        """get_watchlist_quotes for an empty watchlist returns items=[]."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+        wl = create_watchlist(db_session, "Empty")
+        result = get_watchlist_quotes(db_session, wl["id"])
+        assert result is not None
+        assert result["items"] == []
+
+    def test_change_pct_none_when_no_prev_close(self, db_with_stock):
+        """change_pct is None when prev_close is unavailable."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        from datetime import datetime, timedelta, timezone
+
+        wl = create_watchlist(db_with_stock, "Test")
+        add_item(db_with_stock, wl["id"], "000001")
+
+        mock_fin = pd.DataFrame({"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]})
+        mock_fetcher = MagicMock()
+        mock_fetcher.financial.return_value = mock_fin
+
+        mock_store = MagicMock()
+        mock_store.last_close.return_value = {"close": 10.0}  # no prev_close
+        mock_store.date_range.return_value = {"start": None, "end": None, "rows": 100}
+        mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            result = get_watchlist_quotes(db_with_stock, wl["id"])
+            item = result["items"][0]
+            assert item["latest_price"] == 10.0
+            assert item["change_pct"] is None
+
+    def test_financial_missing_yields_none_values(self, db_with_stock):
+        """When financial data is unavailable, pe/pb/dividend_yield are None."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        wl = create_watchlist(db_with_stock, "Test")
+        add_item(db_with_stock, wl["id"], "000001")
+
+        mock_fetcher = MagicMock()
+        mock_fetcher.financial.side_effect = RuntimeError("unavailable")
+
+        from datetime import datetime, timedelta, timezone
+
+        mock_store = MagicMock()
+        mock_store.last_close.return_value = {"close": 10.0, "prev_close": 9.5}
+        mock_store.date_range.return_value = None  # no financial cache either
+        mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            result = get_watchlist_quotes(db_with_stock, wl["id"])
+            item = result["items"][0]
+            assert item["pe"] is None
+            assert item["pb"] is None
+            assert item["dividend_yield"] is None
+
+    def test_data_freshness_unknown_when_no_cache_or_fetch(self, db_with_stock):
+        """data_freshness is 'unknown' when both cache and fetcher fail."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        wl = create_watchlist(db_with_stock, "Test")
+        add_item(db_with_stock, wl["id"], "000001")
+
+        mock_fetcher = MagicMock()
+        mock_fetcher.daily.side_effect = RuntimeError("offline")
+        mock_fetcher.financial.side_effect = RuntimeError("offline")
+
+        mock_store = MagicMock()
+        mock_store.last_close.return_value = None
+        mock_store.date_range.return_value = None
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            result = get_watchlist_quotes(db_with_stock, wl["id"])
+            item = result["items"][0]
+            assert item["latest_price"] is None
+            assert item["data_freshness"] == "unknown"
+            assert item["data_status"]["has_daily"] is False
+
+
+class TestAddItemEdgeCases:
+    def test_add_with_notes_on_first_add(self, db_with_stock):
+        """Adding a new item with notes preserves both code and notes."""
+        wl = create_watchlist(db_with_stock, "Test")
+        result = add_item(db_with_stock, wl["id"], "000001", notes="initial note")
+        item = [i for i in result["items"] if i["code"] == "000001"][0]
+        assert item["notes"] == "initial note"
+
+    def test_re_add_after_remove(self, db_with_stock):
+        """Removing an item then re-adding it works correctly."""
+        wl = create_watchlist(db_with_stock, "Test")
+        add_item(db_with_stock, wl["id"], "000001")
+        remove_item(db_with_stock, wl["id"], "000001")
+        result = add_item(db_with_stock, wl["id"], "000001", notes="重回关注")
+        assert result["stock_count"] == 1
+        assert result["items"][0]["notes"] == "重回关注"

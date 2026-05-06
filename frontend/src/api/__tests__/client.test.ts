@@ -36,6 +36,9 @@ import {
   fetchBacktestResults,
   fetchBacktestResult,
   fetchIndustryComparison,
+  addToWatchlist,
+  removeFromWatchlist,
+  batchAddItems,
 } from '@/api/client';
 
 beforeEach(() => {
@@ -225,6 +228,109 @@ describe('searchStocks', () => {
 describe('getExportCsvUrl', () => {
   it('returns export URL', () => {
     expect(getExportCsvUrl(5)).toBe('/api/watchlists/5/export');
+  });
+});
+
+// ── Watchlist Quotes Mapping ────────────────────────
+
+describe('fetchWatchlistQuotes field mapping', () => {
+  const mockQuoteItem = {
+    code: '000001',
+    name: '平安银行',
+    latest_price: 12.5,
+    change_pct: 0.025,
+    pe: 6.8,
+    pb: 0.9,
+    dividend_yield: 0.035,
+    notes: '银行龙头',
+    data_status: {
+      has_daily: true,
+      has_financial: true,
+      daily_start: '2024-01-01',
+      daily_end: '2025-12-31',
+      financial_periods: 8,
+    },
+    data_freshness: 'cached',
+  };
+
+  it('passes data_freshness through', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', items: [mockQuoteItem] },
+    });
+    const result = await fetchWatchlistQuotes(1);
+    expect(result.items[0].data_freshness).toBe('cached');
+  });
+
+  it('passes data_status sub-fields through', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', items: [mockQuoteItem] },
+    });
+    const result = await fetchWatchlistQuotes(1);
+    expect(result.items[0].data_status).toEqual({
+      has_daily: true,
+      has_financial: true,
+      daily_start: '2024-01-01',
+      daily_end: '2025-12-31',
+      financial_periods: 8,
+    });
+  });
+
+  it('passes notes field through', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', items: [mockQuoteItem] },
+    });
+    const result = await fetchWatchlistQuotes(1);
+    expect(result.items[0].notes).toBe('银行龙头');
+  });
+
+  it('handles empty items array', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', items: [] },
+    });
+    const result = await fetchWatchlistQuotes(1);
+    expect(result.items).toEqual([]);
+  });
+});
+
+// ── Watchlist Items CRUD ────────────────────────────
+
+describe('addToWatchlist', () => {
+  it('calls POST /watchlists/:id/items with code', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', stock_count: 1, items: [] },
+    });
+    await addToWatchlist(1, '000001');
+    expect(mockPost).toHaveBeenCalledWith('/watchlists/1/items', { code: '000001' });
+  });
+
+  it('passes notes when provided', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', stock_count: 1, items: [] },
+    });
+    await addToWatchlist(1, '000001', '重点观察');
+    expect(mockPost).toHaveBeenCalledWith('/watchlists/1/items', {
+      code: '000001', notes: '重点观察',
+    });
+  });
+});
+
+describe('removeFromWatchlist', () => {
+  it('calls DELETE /watchlists/:id/items/:code', async () => {
+    mockDelete.mockResolvedValueOnce({});
+    await removeFromWatchlist(1, '000001');
+    expect(mockDelete).toHaveBeenCalledWith('/watchlists/1/items/000001');
+  });
+});
+
+describe('batchAddItems', () => {
+  it('calls POST with codes array', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { id: 1, name: 'WL', stock_count: 2, items: [] },
+    });
+    await batchAddItems(1, ['000001', '600519']);
+    expect(mockPost).toHaveBeenCalledWith('/watchlists/1/items/batch', {
+      codes: ['000001', '600519'],
+    });
   });
 });
 

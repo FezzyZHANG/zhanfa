@@ -4,15 +4,21 @@ from fastapi import APIRouter
 
 from zhanfa.api.models import SchedulerJob, SchedulerStatus, SchedulerTriggerRequest
 from zhanfa.automation.scheduler import scheduler
-from zhanfa.automation.workflows import update_daily_data, weekly_index_rebalance
+from zhanfa.automation.workflows import update_daily_data, update_minute_data, weekly_index_rebalance
 
 router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])
 
 
 @router.get("/status", response_model=SchedulerStatus)
 def get_status():
-    jobs = [SchedulerJob(**j) for j in scheduler.list_jobs()]
-    return SchedulerStatus(jobs=jobs, running=False)
+    status = scheduler.get_status()
+    jobs = [SchedulerJob(**j) for j in status.get("jobs", [])]
+    return SchedulerStatus(
+        jobs=jobs,
+        running=status.get("running", False),
+        last_errors=status.get("last_errors", []),
+        next_run=status.get("next_run", {}),
+    )
 
 
 @router.post("/trigger")

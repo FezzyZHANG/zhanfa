@@ -1,23 +1,61 @@
 """akshare 数据获取封装"""
 
+import os
+from datetime import timedelta
+
 import pandas as pd
 
 from .store import Store
 
 
+def _env_ttl(key: str, default_hours: float | None) -> timedelta | None:
+    """Read a TTL in hours from an env var, falling back to the default.
+
+    Returns None when both env var is unset and default_hours is None (no expiry).
+    """
+    val = os.getenv(key)
+    if val is not None:
+        try:
+            return timedelta(hours=float(val))
+        except (TypeError, ValueError):
+            pass
+    if default_hours is not None:
+        return timedelta(hours=default_hours)
+    return None
+
+
 class Fetcher:
-    """A股数据获取器，结果自动缓存到本地 parquet"""
+    """A股数据获取器，结果自动缓存到本地 parquet，支持 TTL 过期。
+
+    TTL defaults (configurable via env vars):
+      - CACHE_TTL_DAILY_HOURS (default 6): 日线行情
+      - CACHE_TTL_INDEX_DAILY_HOURS (default 6): 指数日线
+      - CACHE_TTL_STOCK_LIST_HOURS (default 24): 全A股列表
+      - CACHE_TTL_INDEX_COMPONENTS_HOURS (default 24): 指数成分股
+      - CACHE_TTL_INDUSTRY_STOCKS_HOURS (default 24): 行业成分股
+      - CACHE_TTL_FINANCIAL_HOURS (default 720): 财务数据 (~30 days)
+      - CACHE_TTL_MINUTE_HOURS (default 6): 分钟线行情
+    """
 
     def __init__(self, store: Store | None = None):
         self.store = store or Store()
+        self.ttl_daily = _env_ttl("CACHE_TTL_DAILY_HOURS", 6)
+        self.ttl_index_daily = _env_ttl("CACHE_TTL_INDEX_DAILY_HOURS", 6)
+        self.ttl_stock_list = _env_ttl("CACHE_TTL_STOCK_LIST_HOURS", 24)
+        self.ttl_index_components = _env_ttl("CACHE_TTL_INDEX_COMPONENTS_HOURS", 24)
+        self.ttl_industry_stocks = _env_ttl("CACHE_TTL_INDUSTRY_STOCKS_HOURS", 24)
+        self.ttl_financial = _env_ttl("CACHE_TTL_FINANCIAL_HOURS", 720)  # ~30 days
+        self.ttl_minute = _env_ttl("CACHE_TTL_MINUTE_HOURS", 6)
 
     # ── 日线行情 ──────────────────────────────
 
     def daily(self, code: str, start: str = "20100101", end: str = "21000101", adjust: str = "qfq") -> pd.DataFrame:
-        """获取单只股票日线（前复权），优先读缓存"""
-        cached = self.store.load(code, "daily")
-        if cached is not None:
+        """获取单只股票日线（前复权），优先读缓存，超出 TTL 或坏缓存自动刷新"""
+        cached = self.store.load(code, "daily", max_age=self.ttl_daily)
+        if cached is not None and len(cached) >= 1:
             return cached
+        if cached is not None:
+            self.store.delete(code, "daily")  # 坏缓存删除后重新拉取
 
         import akshare as ak
         df = ak.stock_zh_a_hist(symbol=code, period="daily", start_date=start, end_date=end, adjust=adjust)
@@ -36,7 +74,7 @@ class Fetcher:
 
     def index_daily(self, code: str, start: str = "20100101", end: str = "21000101") -> pd.DataFrame:
         """获取指数日线（如 000300 沪深300）"""
-        cached = self.store.load(code, "index_daily")
+        cached = self.store.load(code, "index_daily", max_age=self.ttl_index_daily)
         if cached is not None:
             return cached
 
@@ -68,7 +106,7 @@ class Fetcher:
     def index_components(self, index_code: str = "000300") -> list[str]:
         """获取指数成分股列表，如沪深300（缓存一天）"""
         cache_key = f"components_{index_code}"
-        cached = self.store.load(cache_key, "meta")
+        cached = self.store.load(cache_key, "meta", max_age=self.ttl_index_components)
         if cached is not None:
             return cached["code"].tolist()
 
@@ -79,10 +117,12 @@ class Fetcher:
         return codes
 
     def stock_list(self) -> pd.DataFrame:
-        """获取全A股列表（含代码、名称）"""
-        cached = self.store.load("stock_list", "meta")
-        if cached is not None:
+        """获取全A股列表（含代码、名称），缓存 24h 后自动刷新，坏缓存自动修复"""
+        cached = self.store.load("stock_list", "meta", max_age=self.ttl_stock_list)
+        if cached is not None and len(cached) >= 5000:
             return cached
+        if cached is not None:
+            self.store.delete("stock_list", "meta")  # 截断坏缓存删除后重新拉取
 
         import akshare as ak
         df = ak.stock_info_a_code_name()
@@ -95,7 +135,7 @@ class Fetcher:
 
     def financial(self, code: str) -> pd.DataFrame:
         """获取个股核心财务指标（ROE、EPS、资产负债率等），列名标准化为英文"""
-        cached = self.store.load(code, "financial")
+        cached = self.store.load(code, "financial", max_age=self.ttl_financial)
         if cached is not None:
             return cached
 
@@ -112,7 +152,7 @@ class Fetcher:
     def minute(self, code: str, period: str = "60", adjust: str = "qfq") -> pd.DataFrame:
         """获取单只股票分钟级数据（15min/30min/1h 等），优先读缓存"""
         freq = f"minute_{period}"
-        cached = self.store.load(code, freq)
+        cached = self.store.load(code, freq, max_age=self.ttl_minute)
         if cached is not None:
             return cached
 
@@ -137,7 +177,7 @@ class Fetcher:
         import akshare as ak
 
         cache_key = f"industry_{industry_name}"
-        cached = self.store.load(cache_key, "meta")
+        cached = self.store.load(cache_key, "meta", max_age=self.ttl_industry_stocks)
         if cached is not None:
             return cached
 

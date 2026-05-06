@@ -1,6 +1,7 @@
 """本地数据缓存 - 基于 parquet 格式"""
 
-from datetime import date
+import os
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -21,14 +22,26 @@ class Store:
         path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(path, index=True)
 
-    def load(self, code: str, freq: str = "daily") -> pd.DataFrame | None:
+    def load(self, code: str, freq: str = "daily", max_age: timedelta | None = None) -> pd.DataFrame | None:
         path = self._path(code, freq)
-        if path.exists():
-            return pd.read_parquet(path)
-        return None
+        if not path.exists():
+            return None
+        if max_age is not None:
+            mtime = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+            if datetime.now(timezone.utc) - mtime > max_age:
+                return None
+        return pd.read_parquet(path)
 
     def exists(self, code: str, freq: str = "daily") -> bool:
         return self._path(code, freq).exists()
+
+    def mtime(self, code: str, freq: str = "daily") -> datetime | None:
+        """Return the last-modified time of a cached parquet file, or None."""
+        path = self._path(code, freq)
+        try:
+            return datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+        except OSError:
+            return None
 
     def codes(self, freq: str = "daily") -> list[str]:
         p = self.base / freq
@@ -120,13 +133,15 @@ class Store:
         Returns:
             {"stock_count": int, "total_rows": int, "storage_bytes": int,
              "date_range": {"start": date|None, "end": date|None},
-             "freq_stats": {"daily": int, "financial": int, ...}}
+             "freq_stats": {"daily": int, "financial": int, ...},
+             "last_refreshed_at": datetime|None}
         """
         if not self.base.exists():
             return {
                 "stock_count": 0, "total_rows": 0, "storage_bytes": 0,
                 "date_range": {"start": None, "end": None},
                 "freq_stats": {},
+                "last_refreshed_at": None,
             }
 
         freq_stats: dict[str, int] = {}
@@ -134,6 +149,7 @@ class Store:
         total_bytes = 0
         global_min_date: date | None = None
         global_max_date: date | None = None
+        latest_mtime: datetime | None = None
 
         for freq_dir in sorted(self.base.iterdir()):
             if not freq_dir.is_dir():
@@ -146,6 +162,10 @@ class Store:
                 total_bytes += f.stat().st_size
                 try:
                     total_rows += pq.read_metadata(f).num_rows
+
+                    f_mtime = datetime.fromtimestamp(os.path.getmtime(f), tz=timezone.utc)
+                    if latest_mtime is None or f_mtime > latest_mtime:
+                        latest_mtime = f_mtime
 
                     if freq in ("daily", "index_daily"):
                         _min, _max = self._file_date_range(f)
@@ -165,6 +185,7 @@ class Store:
             "storage_bytes": total_bytes,
             "date_range": {"start": global_min_date, "end": global_max_date},
             "freq_stats": freq_stats,
+            "last_refreshed_at": latest_mtime.isoformat() if latest_mtime else None,
         }
 
     def _file_date_range(self, path: Path) -> tuple[date | None, date | None]:

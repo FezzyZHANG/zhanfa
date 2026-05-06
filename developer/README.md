@@ -19,6 +19,7 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 
 - [标准测试流程](testing.md): 工单开发时如何选择定向测试、全量回归、前端构建和手动验证。
 - [工程中台角色草稿](platform-ops-role.md): 环境分析、质量控制、工单管理与交付协调的职责边界。
+- `auto-code-review/report_full_20260506.md`: 2026-05-06 工程中台全量代码审查报告。
 
 ## 工单列表
 
@@ -64,6 +65,24 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 | [038]  | 前端 TypeScript 配置与核心类型修复 | P1 - 高 | ✅ 已完成 | 031 |
 | [039]  | lightweight-charts v5 API 迁移 | P1 - 高 | ✅ 已完成 | 028, 031 |
 | [040]  | 前端页面/组件严格类型清理 | P1 - 高 | ✅ 已完成 | 031 |
+| [041]  | 数据缓存可知情与定期更新 | P1 - 高 | ✅ 已完成 | - |
+| [042]  | CI pytest 失败 — max_age 测试与编码问题 | P1 - 高 | ✅ 已完成 | 041 |
+| [043]  | API 降级路径静默吞错缺少可观测性 | P1 - 高 | 📋 待开始 | - |
+| [044]  | 移除 FastAPI 模块导入阶段的 init_db 副作用 | P1 - 高 | 📋 待开始 | 032 |
+| [045]  | Pydantic 模型可变默认值统一改为 default_factory | P1 - 高 | 📋 待开始 | - |
+| [046]  | 前端 BacktestResult 映射函数去重 | P2 - 中 | 📋 待开始 | 034, 036 |
+| [047]  | StockInfo 前后端契约对齐 | P2 - 中 | 📋 待开始 | - |
+| [048]  | get_watchlist_quotes 批量行情查询性能优化 | P3 - 低 | 📋 待开始 | 043 |
+| [049]  | 行业比较接口逐股抓取财务数据导致响应慢 | P3 - 低 | 📋 待开始 | - |
+| [050]  | 回测结果持久化失败缺少日志与失败语义 | P2 - 中 | 📋 待开始 | 034 |
+| [051]  | 回测请求日期格式统一由后端校验转换 | P2 - 中 | 📋 待开始 | - |
+| [052]  | 调度时间配置与实际注册值对齐 | P2 - 中 | 📋 待开始 | 041 |
+| [053]  | 策略 code_ref fallback 与注册源统一 | P3 - 低 | 📋 待开始 | - |
+| [054]  | 补齐关键链路与降级场景测试 | P2 - 中 | 📋 待开始 | 041, 043 |
+| [055]  | Docker 前端等待后端健康后再暴露服务 | P3 - 低 | 📋 待开始 | - |
+| [056]  | pre-commit 补齐本地类型与前端质量门禁 | P4 - 低 | 📋 待开始 | - |
+| [057]  | 补齐发布清单与环境变量文档 | P4 - 低 | 📋 待开始 | - |
+| [042a] | 恢复 max_age TTL 缓存命中测试 | P2 - 中 | 📋 待开始 | 041 |
 
 ## 状态说明
 
@@ -113,3 +132,21 @@ zhanfa (战法) 前端与后端扩展 —— 需求分析与任务跟踪。
 [038]: tickets/TICKET-038.md
 [039]: tickets/TICKET-039.md
 [040]: tickets/TICKET-040.md
+[041]: tickets/TICKET-041.md
+[042]: tickets/TICKET-042.md
+[043]: tickets/TICKET-043.md
+[044]: tickets/TICKET-044.md
+[045]: tickets/TICKET-045.md
+[046]: tickets/TICKET-046.md
+[047]: tickets/TICKET-047.md
+[048]: tickets/TICKET-048.md
+[049]: tickets/TICKET-049.md
+[050]: tickets/TICKET-050.md
+[051]: tickets/TICKET-051.md
+[052]: tickets/TICKET-052.md
+[053]: tickets/TICKET-053.md
+[054]: tickets/TICKET-054.md
+[055]: tickets/TICKET-055.md
+[056]: tickets/TICKET-056.md
+[057]: tickets/TICKET-057.md
+[042a]: tickets/TICKET-042a.md

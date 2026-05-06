@@ -28,6 +28,8 @@ class Scheduler:
         self._state_file = state_file
         self._on_error = on_error
         self._running = False
+        self._last_errors: list[dict] = []  # recent error records
+        self._execution_log: dict[str, str | None] = {}  # job_label → last_run_at or error
 
         logging.basicConfig(
             level=logging.INFO,
@@ -118,6 +120,19 @@ class Scheduler:
         except Exception:
             logger.exception("加载调度状态失败: %s", self._state_file)
 
+    # ── 编程式注册 ──────────────────────────
+
+    def register_func(self, name: str, time_str: str, job_type: str, func: Callable) -> None:
+        """直接注册函数为定时任务（非装饰器方式）。"""
+        wrapped = self._wrap(func, f"{name}@{job_type}:{time_str}")
+        if job_type == "daily":
+            schedule.every().day.at(time_str).do(wrapped)
+        elif job_type == "hourly":
+            schedule.every().hour.do(wrapped)
+        else:
+            raise ValueError(f"unsupported job_type: {job_type}")
+        self._register(name, time_str, job_type)
+
     # ── 错误通知 ────────────────────────────
 
     def _wrap(self, func: Callable, job_label: str) -> Callable:
@@ -125,14 +140,42 @@ class Scheduler:
         def wrapper():
             try:
                 logger.info("执行任务: %s", job_label)
+                self._execution_log[job_label] = datetime.now(timezone.utc).isoformat()
                 func()
                 logger.info("任务完成: %s", job_label)
             except Exception as e:
                 msg = f"任务 [{job_label}] 执行失败"
                 logger.exception(msg)
                 tb = traceback.format_exc()
+                self._execution_log[job_label] = f"error: {str(e)[:200]}"
+                self._last_errors.append({
+                    "job": job_label,
+                    "error": str(e)[:200],
+                    "time": datetime.now(timezone.utc).isoformat(),
+                })
+                if len(self._last_errors) > 20:
+                    self._last_errors = self._last_errors[-20:]
                 self._notify_error(job_label, tb)
         return wrapper
+
+    def get_status(self) -> dict:
+        return {
+            "jobs": self._jobs,
+            "running": self._running,
+            "last_errors": self._last_errors[-5:],
+            "next_run": self._next_run_times(),
+            "execution_log": self._execution_log,
+        }
+
+    def _next_run_times(self) -> dict[str, str | None]:
+        """Get next scheduled run time for each job."""
+        result: dict[str, str | None] = {}
+        for job in schedule.jobs:
+            next_run = job.next_run
+            label = job.job_func.keyword.get("label", "") if hasattr(job.job_func, "keyword") else ""
+            if label:
+                result[label] = next_run.isoformat() if next_run else None
+        return result
 
     def _notify_error(self, job_label: str, traceback_str: str) -> None:
         """错误通知：回调 + 日志"""
