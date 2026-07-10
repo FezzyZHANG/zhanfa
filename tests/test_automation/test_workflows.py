@@ -27,19 +27,19 @@ class TestUpdateDailyData:
         mock_fetcher.stock_list.return_value = pd.DataFrame({"code": ["000001"], "name": ["test"]})
 
         def side_effect(code):
-            if code == "bad_code":
+            if code == "600519":
                 raise RuntimeError("fail")
             return pd.DataFrame({"close": [1.0]})
 
         mock_fetcher.daily.side_effect = side_effect
 
         with patch("zhanfa.automation.workflows.Fetcher", return_value=mock_fetcher):
-            result = update_daily_data(codes=["000001", "bad_code"])
+            result = update_daily_data(codes=["000001", "600519"])
 
         assert result["updated"] == 1
         assert result["failed"] == 1
         assert result["details"]["000001"] == 1
-        assert result["details"]["bad_code"] == -1
+        assert result["details"]["600519"] == -1
 
     def test_discover_new_stocks(self):
         from zhanfa.automation.workflows import update_daily_data

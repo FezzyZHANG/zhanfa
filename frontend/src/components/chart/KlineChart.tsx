@@ -67,6 +67,21 @@ export function KlineChart({
   const bollSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
   const donchianSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
   const comparisonSeriesRefs = useRef<ISeriesApi<'Line'>[]>([]);
+  const dataRef = useRef(data);
+  const onCrosshairMoveRef = useRef(onCrosshairMove);
+  const onDateClickRef = useRef(onDateClick);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    onCrosshairMoveRef.current = onCrosshairMove;
+  }, [onCrosshairMove]);
+
+  useEffect(() => {
+    onDateClickRef.current = onDateClick;
+  }, [onDateClick]);
 
   const cleanupSeries = useCallback(() => {
     maSeriesRefs.current.forEach((s) => {
@@ -149,22 +164,21 @@ export function KlineChart({
 
       // Crosshair
       chart.subscribeCrosshairMove((param: MouseEventParams) => {
-        if (!onCrosshairMove) return;
+        const handler = onCrosshairMoveRef.current;
+        if (!handler) return;
         if (!param.time || param.point === undefined) {
-          onCrosshairMove(null, 0, 0);
+          handler(null, 0, 0);
           return;
         }
         const timeStr = param.time as string;
-        const item = data.find((d) => d.date === timeStr);
-        onCrosshairMove(item || null, param.point.x, param.point.y);
+        const item = dataRef.current.find((d) => d.date === timeStr);
+        handler(item || null, param.point.x, param.point.y);
       });
 
       // Click
-      if (onDateClick) {
-        chart.subscribeClick((param: MouseEventParams) => {
-          if (param.time) onDateClick(param.time as string);
-        });
-      }
+      chart.subscribeClick((param: MouseEventParams) => {
+        if (param.time) onDateClickRef.current?.(param.time as string);
+      });
 
       // Expose time scale
       if (onTimeScaleReady) {
@@ -350,7 +364,7 @@ export function KlineChart({
     return () => {
       // Don't remove chart on data change, just on unmount
     };
-  }, [data, indicators, indicatorConfigs, comparisonData, height, onCrosshairMove, onDateClick, onTimeScaleReady, cleanupSeries, ref]);
+  }, [data, indicators, indicatorConfigs, comparisonData, height, onTimeScaleReady, cleanupSeries, ref]);
 
   // Chart instance cleanup on unmount
   useEffect(() => {

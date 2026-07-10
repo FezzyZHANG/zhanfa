@@ -1,5 +1,7 @@
 """API endpoint tests — uses FastAPI TestClient with httpx."""
 
+from unittest.mock import patch
+
 # ── Health ────────────────────────────────────────────
 
 def test_health(client):
@@ -111,6 +113,14 @@ def test_get_stock_not_found(client):
     assert r.status_code == 404
 
 
+def test_stock_code_path_rejects_invalid_code(client):
+    r = client.get("/api/stocks/../000001")
+    assert r.status_code == 404
+
+    r = client.get("/api/stocks/bad-code")
+    assert r.status_code == 422
+
+
 # ── Watchlists ────────────────────────────────────────
 
 def test_watchlist_lifecycle(client):
@@ -182,6 +192,16 @@ def test_backtest_submit_and_poll(client):
     assert any(h["task_id"] == task_id for h in history)
 
 
+def test_backtest_rejects_invalid_code(client):
+    r = client.post("/api/backtest/run", json={
+        "code": "../000001",
+        "strategy": "sma_cross",
+        "start_date": "20240101",
+        "end_date": "20250101",
+    })
+    assert r.status_code == 422
+
+
 def test_backtest_not_found(client):
     r = client.get("/api/backtest/nonexistent")
     assert r.status_code == 404
@@ -237,18 +257,28 @@ def test_scheduler_status(client):
 
 
 def test_scheduler_trigger_update(client):
-    r = client.post("/api/scheduler/trigger", json={"action": "update_daily"})
+    with patch(
+        "zhanfa.api.routers.scheduler.update_daily_data",
+        return_value={"updated": 1, "failed": 0, "new_discovered": 0, "details": {}},
+    ) as mock_update:
+        r = client.post("/api/scheduler/trigger", json={"action": "update_daily"})
     assert r.status_code == 200
     assert r.json()["action"] == "update_daily"
+    mock_update.assert_called_once_with(None)
 
 
 def test_scheduler_trigger_rebalance(client):
-    r = client.post("/api/scheduler/trigger", json={
-        "action": "rebalance_index",
-        "index_code": "000300"
-    })
+    with patch(
+        "zhanfa.api.routers.scheduler.weekly_index_rebalance",
+        return_value={"index_code": "000300", "added": [], "removed": []},
+    ) as mock_rebalance:
+        r = client.post("/api/scheduler/trigger", json={
+            "action": "rebalance_index",
+            "index_code": "000300",
+        })
     assert r.status_code == 200
     assert r.json()["action"] == "rebalance_index"
+    mock_rebalance.assert_called_once_with("000300")
 
 
 # ── Swagger docs ──────────────────────────────────────

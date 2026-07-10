@@ -4,14 +4,14 @@ import { fetchStrategies, fetchStrategy } from '@/api/client';
 export function useStrategies() {
   return useQuery({
     queryKey: ['strategies'],
-    queryFn: () => fetchStrategies(),
+    queryFn: ({ signal }) => fetchStrategies(undefined, { signal }),
   });
 }
 
 export function useStrategy(id: number) {
   return useQuery({
     queryKey: ['strategies', id],
-    queryFn: () => fetchStrategy(id),
+    queryFn: ({ signal }) => fetchStrategy(id, { signal }),
     enabled: !!id,
   });
 }

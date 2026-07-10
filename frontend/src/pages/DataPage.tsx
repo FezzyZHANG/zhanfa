@@ -20,14 +20,16 @@ export function DataPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     async function load() {
       setTableLoading(true);
       const results: StockDataStatus[] = [];
       for (const code of WATCHED_CODES) {
         try {
-          const s = await fetchStockDataStatus(code);
+          const s = await fetchStockDataStatus(code, { signal: controller.signal });
           if (s && !cancelled) results.push(s);
         } catch {
+          if (controller.signal.aborted) return;
           // skip failed fetches
         }
       }
@@ -39,6 +41,7 @@ export function DataPage() {
     load();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [stats?.cache.stock_count]);
 

@@ -7,6 +7,7 @@ import { YearlyReturns } from '@/components/backtest/YearlyReturns';
 import { MonthlyHeatmap } from '@/components/backtest/MonthlyHeatmap';
 import { TradeTable } from '@/components/backtest/TradeTable';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export function BacktestDetailPage() {
   const { backtestId } = useParams({ strict: false });
@@ -71,11 +72,21 @@ export function BacktestDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="lg:col-span-2">
-          <EquityCurve
-            equity={equity_curve}
-            benchmark={benchmark_curve}
-            height={400}
-          />
+          <ErrorBoundary
+            label="EquityCurve"
+            resetKey={result.id}
+            fallback={
+              <div role="alert" className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+                净值曲线加载失败
+              </div>
+            }
+          >
+            <EquityCurve
+              equity={equity_curve}
+              benchmark={benchmark_curve}
+              height={400}
+            />
+          </ErrorBoundary>
         </div>
         <DrawdownCurve drawdown={drawdown_curve} height={220} />
         <YearlyReturns data={yearly_returns} height={220} />

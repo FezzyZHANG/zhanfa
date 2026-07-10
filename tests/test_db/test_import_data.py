@@ -1,6 +1,7 @@
 """Stock metadata import tests."""
 
 import pandas as pd
+import pytest
 
 from zhanfa.db.import_data import import_stocks_from_frame, normalize_stock_code
 from zhanfa.db.models import Stock
@@ -10,6 +11,11 @@ def test_normalize_stock_code():
     assert normalize_stock_code("1") == "000001"
     assert normalize_stock_code(1) == "000001"
     assert normalize_stock_code("600519") == "600519"
+
+
+def test_normalize_stock_code_rejects_non_digit():
+    with pytest.raises(ValueError, match="Invalid stock code"):
+        normalize_stock_code("../000001")
 
 
 def test_import_stocks_from_frame_is_idempotent(db_session):

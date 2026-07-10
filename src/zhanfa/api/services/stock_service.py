@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from zhanfa.data import Fetcher
 from zhanfa.data.pipeline import Pipeline
 from zhanfa.strategies import indicators as ind
+
+logger = logging.getLogger(__name__)
 
 
 def list_stocks(page: int = 1, page_size: int = 50) -> dict:
@@ -28,7 +32,7 @@ def get_stock_meta(code: str) -> dict | None:
     if match.empty:
         return None
     row = match.iloc[0]
-    result = {
+    result: dict[str, object] = {
         "code": str(row["code"]),
         "name": str(row["name"]),
         "exchange": None,
@@ -45,20 +49,21 @@ def get_stock_meta(code: str) -> dict | None:
         with SessionLocal() as s:
             db_stock = s.query(StockModel).filter(StockModel.code == str(code)).first()
             if db_stock:
-                result["exchange"] = db_stock.exchange  # type: ignore[assignment]
-                result["industry"] = db_stock.industry  # type: ignore[assignment]
-                result["market_cap"] = db_stock.market_cap  # type: ignore[assignment]
+                result["exchange"] = db_stock.exchange
+                result["industry"] = db_stock.industry
+                result["market_cap"] = db_stock.market_cap
                 if db_stock.listed_date:
                     result["listed_date"] = db_stock.listed_date.isoformat()
     except Exception:
-        pass  # DB not available or not initialized
+        logger.warning("Failed to query stock metadata from DB (code=%s)", code, exc_info=True)
 
     try:
         fin = fetcher.financial(code)
         if not fin.empty:
             latest = fin.iloc[-1]
-            result["latest_financial"] = _serialize_financial_row(latest)  # type: ignore[assignment]
+            result["latest_financial"] = _serialize_financial_row(latest)
     except Exception:
+        logger.warning("Failed to query latest financial data (code=%s)", code, exc_info=True)
         result["latest_financial"] = None
 
     return result
@@ -138,46 +143,82 @@ def get_indicators(code: str, start: str = "20100101", end: str = "21000101") ->
     return {"code": code, "count": len(data), "data": data}
 
 
-def get_industry_comparison(industry: str) -> dict:
+def get_industry_comparison(industry: str, limit: int = 20) -> dict:
     fetcher = Fetcher()
     stocks = fetcher.industry_stocks(industry)
     if stocks.empty:
         return {"industry": industry, "peers": []}
 
+    from zhanfa.data.store import Store
+    store = Store()
+
+    # Cap the number of peers to compare
+    stocks = stocks.head(limit)
+
     peers = []
     for _, row in stocks.iterrows():
         code = str(row["code"])
         name = str(row.get("name", ""))
-        peer = {
+        peer: dict[str, object] = {
             "code": code,
             "name": name,
-            "roe": 0,
-            "gross_margin": 0,
-            "debt_ratio": 0,
-            "revenue_growth": 0,
-            "net_profit_growth": 0,
+            "roe": None,
+            "gross_margin": None,
+            "debt_ratio": None,
+            "revenue_growth": None,
+            "net_profit_growth": None,
+            "data_freshness": "missing",
         }
         try:
-            fin = fetcher.financial(code)
-            if not fin.empty and len(fin) >= 2:
+            # Cache-first: try Store.load before live fetch
+            fin = store.load(code, "financial")
+            from_cache = fin is not None
+            if not from_cache:
+                fin = fetcher.financial(code)
+
+            if fin is not None and not fin.empty and len(fin) >= 2:
                 latest = fin.iloc[-1]
                 prev = fin.iloc[-2]
-                peer["roe"] = _safe_float(latest.get("roe"))
-                peer["gross_margin"] = _safe_float(latest.get("gross_margin"))
-                peer["debt_ratio"] = _safe_float(latest.get("debt_ratio"))
-                rev_latest = _safe_float(latest.get("revenue"))
-                rev_prev = _safe_float(prev.get("revenue"))
-                np_latest = _safe_float(latest.get("net_profit"))
-                np_prev = _safe_float(prev.get("net_profit"))
+                peer["roe"] = _safe_float_none(latest.get("roe"))
+                peer["gross_margin"] = _safe_float_none(latest.get("gross_margin"))
+                peer["debt_ratio"] = _safe_float_none(latest.get("debt_ratio"))
+                rev_latest = _safe_float_none(latest.get("revenue"))
+                rev_prev = _safe_float_none(prev.get("revenue"))
+                np_latest = _safe_float_none(latest.get("net_profit"))
+                np_prev = _safe_float_none(prev.get("net_profit"))
                 if rev_latest and rev_prev and rev_prev != 0:
                     peer["revenue_growth"] = (rev_latest - rev_prev) / abs(rev_prev)
                 if np_latest and np_prev and np_prev != 0:
                     peer["net_profit_growth"] = (np_latest - np_prev) / abs(np_prev)
+                peer["data_freshness"] = "cached" if from_cache else "live"
+            elif fin is not None and not fin.empty:
+                # Only 1 period available — fill static indicators, no growth
+                latest = fin.iloc[-1]
+                peer["roe"] = _safe_float_none(latest.get("roe"))
+                peer["gross_margin"] = _safe_float_none(latest.get("gross_margin"))
+                peer["debt_ratio"] = _safe_float_none(latest.get("debt_ratio"))
+                peer["data_freshness"] = "cached" if from_cache else "live"
         except Exception:
-            pass
+            logger.warning(
+                "Failed to build industry comparison peer (industry=%s, code=%s)",
+                industry,
+                code,
+                exc_info=True,
+            )
         peers.append(peer)
 
     return {"industry": industry, "peers": peers}
+
+
+def _safe_float_none(val) -> float | None:
+    """Like _safe_float but returns None on missing, to distinguish 0 from missing."""
+    if val is None:
+        return None
+    try:
+        v = float(val)
+        return v if v == v else None
+    except (ValueError, TypeError):
+        return None
 
 
 def _safe_float(val) -> float:

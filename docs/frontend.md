@@ -30,11 +30,11 @@ frontend/
 ├── package.json
 └── src/
     ├── main.tsx            # 入口: React StrictMode
-    ├── App.tsx             # 根组件: QueryClientProvider + RouterProvider
+    ├── App.tsx             # 根组件: QueryClientProvider + ErrorBoundary + RouterProvider
     ├── router.ts           # 路由定义
     ├── index.css           # Tailwind CSS 导入 + Markdown 样式
     ├── api/
-    │   ├── client.ts       # API 客户端 (所有数据抓取函数 + USE_MOCK 守卫)
+    │   ├── client.ts       # API 客户端 (数据抓取函数 + AbortSignal + USE_MOCK 守卫)
     │   └── mock.ts         # 完整 Mock 数据集
     ├── components/
     │   ├── Layout.tsx      # 布局外壳 (Navbar + Outlet)
@@ -91,7 +91,7 @@ K 线图（TradingView lightweight-charts）+ 技术指标面板（MACD / RSI）
 
 ### 回测 (/backtest, /backtest/$backtestId)
 
-回测主页面：参数表单 + 历史回测列表 + 多策略对比视图。回测详情页包含净值曲线、回撤曲线、年度/月度收益热力图、交易记录表等完整可视化。
+回测主页面：单标的参数表单 + 历史回测列表 + 多策略对比视图。回测详情页包含净值曲线、回撤曲线、年度/月度收益热力图、交易记录表等完整可视化。
 
 ### 数据管理 (/data)
 
@@ -181,7 +181,7 @@ npm run preview
 
 ### 回测组件 (`src/components/backtest/`)
 
-- **BacktestForm** — 回测参数表单（策略选择、股票代码、日期范围、参数覆盖）
+- **BacktestForm** — 回测参数表单（策略选择、单只股票代码、日期范围、参数覆盖）
 - **BacktestMetrics** — 绩效指标卡片（收益率、夏普比率、最大回撤等）
 - **EquityCurve** — 净值曲线图
 - **DrawdownCurve** — 回撤曲线图

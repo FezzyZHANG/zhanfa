@@ -48,6 +48,12 @@
 | 构建工具     | Vite                                                       | 开发体验快，ESM 原生                                              |
 | 路由         | TanStack Router                                            | TypeScript 类型安全路由                                          |
 
+### 前端可靠性约定
+
+- `App.tsx` 使用顶层 `ErrorBoundary` 包裹路由；K 线、指标副图、回测净值曲线等图表区域单独包裹错误边界，避免单个图表渲染失败拖垮整页。
+- React Query 查询函数必须传递框架提供的 `AbortSignal` 到 `src/api/client.ts`，组件卸载或查询切换时取消未完成请求；手动发起的页面级请求使用 `AbortController`。
+- 当前 `/api/backtest/run` 契约是单标的 `code`，前端 `BacktestForm` 使用单选标的。若后端未来支持组合回测，再把 UI 和 hook 类型恢复为多标的提交。
+
 ### 后端：FastAPI + Pydantic v2
 
 保持 Python 技术栈一致，复用现有 `src/zhanfa/` 模块：

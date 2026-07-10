@@ -1,9 +1,20 @@
-from fastapi import APIRouter, HTTPException, Query
+from typing import Annotated
 
-from zhanfa.api.models import DailyResponse, FinancialResponse, IndicatorResponse, IndustryComparisonResponse, StockListResponse
+from fastapi import APIRouter, HTTPException, Path, Query
+
+from zhanfa.api.models import (
+    STOCK_CODE_PATTERN,
+    DailyResponse,
+    FinancialResponse,
+    IndicatorResponse,
+    IndustryComparisonResponse,
+    StockListResponse,
+)
 from zhanfa.api.services import stock_service
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
+
+StockCodePath = Annotated[str, Path(pattern=STOCK_CODE_PATTERN)]
 
 
 @router.get("", response_model=StockListResponse)
@@ -12,12 +23,12 @@ def list_stocks(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=
 
 
 @router.get("/industry/{industry}/comparison", response_model=IndustryComparisonResponse)
-def get_industry_comparison(industry: str):
-    return stock_service.get_industry_comparison(industry)
+def get_industry_comparison(industry: str, limit: int = Query(20, ge=1, le=100)):
+    return stock_service.get_industry_comparison(industry, limit=limit)
 
 
 @router.get("/{code}", response_model=dict)
-def get_stock(code: str):
+def get_stock(code: StockCodePath):
     result = stock_service.get_stock_meta(code)
     if result is None:
         raise HTTPException(404, f"Stock not found: {code}")
@@ -26,7 +37,7 @@ def get_stock(code: str):
 
 @router.get("/{code}/daily", response_model=DailyResponse)
 def get_daily(
-    code: str,
+    code: StockCodePath,
     start: str = Query("20100101"),
     end: str = Query("21000101"),
     freq: str = Query("daily"),
@@ -35,13 +46,13 @@ def get_daily(
 
 
 @router.get("/{code}/financial", response_model=FinancialResponse)
-def get_financial(code: str, years: int = Query(3, ge=1, le=20)):
+def get_financial(code: StockCodePath, years: int = Query(3, ge=1, le=20)):
     return stock_service.get_financial(code, years=years)
 
 
 @router.get("/{code}/indicators", response_model=IndicatorResponse)
 def get_indicators(
-    code: str,
+    code: StockCodePath,
     start: str = Query("20100101"),
     end: str = Query("21000101"),
 ):

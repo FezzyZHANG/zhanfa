@@ -8,7 +8,7 @@ interface BacktestFormProps {
   stocks: { code: string; name: string }[];
   onSubmit: (data: {
     strategy_id: number;
-    stock_codes: string[];
+    stock_code: string;
     start_date: string;
     end_date: string;
     initial_capital: number;
@@ -19,7 +19,7 @@ interface BacktestFormProps {
 
 export function BacktestForm({ strategies, stocks, onSubmit, isSubmitting }: BacktestFormProps) {
   const [strategyId, setStrategyId] = useState<number>(strategies[0]?.id ?? 0);
-  const [selectedStocks, setSelectedStocks] = useState<Set<string>>(new Set());
+  const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState('2025-01-01');
   const [capital, setCapital] = useState('100000');
@@ -27,17 +27,11 @@ export function BacktestForm({ strategies, stocks, onSubmit, isSubmitting }: Bac
 
   const selectedStrategy = strategies.find((s) => s.id === strategyId);
 
-  const toggleStock = (code: string) => {
-    const next = new Set(selectedStocks);
-    if (next.has(code)) next.delete(code); else next.add(code);
-    setSelectedStocks(next);
-  };
-
   const handleSubmit = () => {
-    if (selectedStocks.size === 0) return;
+    if (!selectedStock) return;
     onSubmit({
       strategy_id: strategyId,
-      stock_codes: Array.from(selectedStocks),
+      stock_code: selectedStock,
       start_date: startDate,
       end_date: endDate,
       initial_capital: Number(capital),
@@ -75,9 +69,9 @@ export function BacktestForm({ strategies, stocks, onSubmit, isSubmitting }: Bac
             {stocks.map((s) => (
               <button
                 key={s.code}
-                onClick={() => toggleStock(s.code)}
+                onClick={() => setSelectedStock(s.code)}
                 className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
-                  selectedStocks.has(s.code)
+                  selectedStock === s.code
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
@@ -146,7 +140,7 @@ export function BacktestForm({ strategies, stocks, onSubmit, isSubmitting }: Bac
 
         <Button
           className="w-full"
-          disabled={selectedStocks.size === 0 || isSubmitting}
+          disabled={!selectedStock || isSubmitting}
           onClick={handleSubmit}
         >
           {isSubmitting ? '提交中...' : '开始回测'}

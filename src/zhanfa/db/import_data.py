@@ -15,7 +15,9 @@ def normalize_stock_code(code) -> str:
     text = str(code).strip()
     if text.endswith(".0"):
         text = text[:-2]
-    return text.zfill(6) if text.isdigit() else text
+    if not text.isdigit():
+        raise ValueError(f"Invalid stock code: {code!r}")
+    return text.zfill(6)
 
 
 def import_stocks_from_frame(df: pd.DataFrame, session=None) -> int:

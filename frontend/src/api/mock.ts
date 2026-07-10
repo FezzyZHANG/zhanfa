@@ -406,20 +406,20 @@ export const industryComparison: Record<string, IndustryComparison> = {
   '白酒': {
     industry: '白酒',
     peers: [
-      { code: '600519', name: '贵州茅台', roe: 0.294, gross_margin: 0.918, debt_ratio: 0.192, revenue_growth: 0.138, net_profit_growth: 0.144 },
-      { code: '000858', name: '五粮液', roe: 0.238, gross_margin: 0.752, debt_ratio: 0.201, revenue_growth: 0.117, net_profit_growth: 0.122 },
+      { code: '600519', name: '贵州茅台', roe: 0.294, gross_margin: 0.918, debt_ratio: 0.192, revenue_growth: 0.138, net_profit_growth: 0.144, data_freshness: 'cached' },
+      { code: '000858', name: '五粮液', roe: 0.238, gross_margin: 0.752, debt_ratio: 0.201, revenue_growth: 0.117, net_profit_growth: 0.122, data_freshness: 'cached' },
     ],
   },
   '电池': {
     industry: '电池',
     peers: [
-      { code: '300750', name: '宁德时代', roe: 0.224, gross_margin: 0.228, debt_ratio: 0.423, revenue_growth: 0.107, net_profit_growth: 0.140 },
+      { code: '300750', name: '宁德时代', roe: 0.224, gross_margin: 0.228, debt_ratio: 0.423, revenue_growth: 0.107, net_profit_growth: 0.140, data_freshness: 'cached' },
     ],
   },
   '银行': {
     industry: '银行',
     peers: [
-      { code: '600036', name: '招商银行', roe: 0.148, gross_margin: 0.485, debt_ratio: 0.912, revenue_growth: 0.065, net_profit_growth: 0.062 },
+      { code: '600036', name: '招商银行', roe: 0.148, gross_margin: 0.485, debt_ratio: 0.912, revenue_growth: 0.065, net_profit_growth: 0.062, data_freshness: 'cached' },
     ],
   },
 };

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import uuid
-from typing import Any
 from datetime import date, datetime, timezone
+from typing import Any, cast
 
 
 from zhanfa.data import Fetcher
@@ -24,7 +25,13 @@ from zhanfa.db.models import BacktestResult, Strategy
 
 logger = logging.getLogger(__name__)
 
-_tasks: dict[str, dict] = {}
+_tasks: dict[str, dict[str, Any]] = {}
+_tasks_lock = threading.RLock()
+
+
+def _task_copy(task: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy for readers so callers cannot mutate _tasks directly."""
+    return dict(task)
 
 
 def _parse_date(s: str) -> date:
@@ -121,7 +128,7 @@ def _update_db_record(db_id: int, updates: dict) -> None:
 
 
 def submit_backtest(request: dict) -> str:
-    task_id = str(uuid.uuid4())[:8]
+    task_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc)
 
     strategy_id = _resolve_strategy_id(request)
@@ -134,7 +141,7 @@ def submit_backtest(request: dict) -> str:
             request.get("code"),
         )
 
-    _tasks[task_id] = {
+    task: dict[str, Any] = {
         "task_id": task_id,
         "db_id": db_record.id if db_record else None,
         "status": "pending",
@@ -150,42 +157,50 @@ def submit_backtest(request: dict) -> str:
         "created_at": now,
         "completed_at": None,
     }
+    with _tasks_lock:
+        _tasks[task_id] = task
     return task_id
 
 
 async def run_backtest_async(task_id: str) -> None:
-    task = _tasks.get(task_id)
-    if task is None:
-        return
-
-    task["status"] = "running"
-    req = task["request"]
+    with _tasks_lock:
+        task = _tasks.get(task_id)
+        if task is None:
+            return
+        task["status"] = "running"
+        req = task["request"]
 
     try:
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, _execute_backtest, req)
-        task["metrics"] = result.get("metrics")
-        task["equity_curve"] = result.get("equity_curve", [])
-        task["drawdown_curve"] = result.get("drawdown_curve", [])
-        task["benchmark_curve"] = result.get("benchmark_curve")
-        task["yearly_returns"] = result.get("yearly_returns", [])
-        task["monthly_returns"] = result.get("monthly_returns", [])
-        task["trades"] = result.get("trades", [])
-        task["status"] = "completed"
+        with _tasks_lock:
+            task = _tasks.get(task_id)
+            if task is None:
+                return
+            task["metrics"] = result.get("metrics")
+            task["equity_curve"] = result.get("equity_curve", [])
+            task["drawdown_curve"] = result.get("drawdown_curve", [])
+            task["benchmark_curve"] = result.get("benchmark_curve")
+            task["yearly_returns"] = result.get("yearly_returns", [])
+            task["monthly_returns"] = result.get("monthly_returns", [])
+            task["trades"] = result.get("trades", [])
+            task["status"] = "completed"
+            db_id = task.get("db_id")
+            db_updates = {
+                "metrics": task["metrics"],
+                "equity_curve": task["equity_curve"],
+                "drawdown_curve": task["drawdown_curve"],
+                "benchmark_curve": task["benchmark_curve"],
+                "yearly_returns": task["yearly_returns"],
+                "monthly_returns": task["monthly_returns"],
+                "trades": task["trades"],
+                "status": "completed",
+            }
 
-        if task.get("db_id"):
+        if db_id:
             _update_db_record(
-                task["db_id"],
-                {
-                    "metrics": task["metrics"],
-                    "equity_curve": task["equity_curve"],
-                    "drawdown_curve": task["drawdown_curve"],
-                    "benchmark_curve": task["benchmark_curve"],
-                    "yearly_returns": task["yearly_returns"],
-                    "monthly_returns": task["monthly_returns"],
-                    "trades": task["trades"],
-                    "status": "completed",
-                },
+                db_id,
+                db_updates,
             )
     except Exception as e:
         logger.exception(
@@ -194,26 +209,35 @@ async def run_backtest_async(task_id: str) -> None:
             req.get("strategy"),
             req.get("code"),
         )
-        task["status"] = "failed"
-        task["error"] = str(e)
+        with _tasks_lock:
+            task = _tasks.get(task_id)
+            if task is None:
+                return
+            task["status"] = "failed"
+            task["error"] = str(e)
+            db_id = task.get("db_id")
 
-        if task.get("db_id"):
+        if db_id:
             _update_db_record(
-                task["db_id"],
+                db_id,
                 {
                     "metrics": {"error": str(e)},
                     "status": "failed",
                 },
             )
     finally:
-        task["completed_at"] = datetime.now(timezone.utc)
+        with _tasks_lock:
+            task = _tasks.get(task_id)
+            if task is not None:
+                task["completed_at"] = datetime.now(timezone.utc)
 
 
 def get_task(task_id: str) -> dict | None:
     """Return task by id — checks memory first, then DB for persisted tasks."""
-    task = _tasks.get(task_id)
-    if task:
-        return task
+    with _tasks_lock:
+        task = _tasks.get(task_id)
+        if task:
+            return _task_copy(task)
 
     return _get_task_from_db(task_id)
 
@@ -231,7 +255,8 @@ def _get_task_from_db(task_id: str) -> dict | None:
 
 def get_history() -> list[dict]:
     """Return merged history — memory tasks + DB-persisted tasks, deduplicated."""
-    memory_tasks = {t["task_id"]: t for t in _tasks.values()}
+    with _tasks_lock:
+        memory_tasks = {t["task_id"]: _task_copy(t) for t in _tasks.values()}
     db_tasks = _get_db_history()
 
     merged: dict[str, dict] = {}
@@ -252,7 +277,16 @@ def _get_db_history() -> list[dict]:
             .order_by(BacktestResult.created_at.desc())
             .all()
         )
-        return [_db_row_to_history_item(r) for r in rows]
+        strategy_ids = {r.strategy_id for r in rows if r.strategy_id is not None}
+        strategy_names = {}
+        if strategy_ids:
+            strategy_names = {
+                row.id: row.name
+                for row in session.query(Strategy.id, Strategy.name)
+                .filter(Strategy.id.in_(strategy_ids))
+                .all()
+            }
+        return [_db_row_to_history_item(r, strategy_names) for r in rows]
     finally:
         session.close()
 
@@ -278,7 +312,10 @@ def _serialize_task(t: dict) -> dict:
     }
 
 
-def _db_row_to_history_item(row: BacktestResult) -> dict:
+def _db_row_to_history_item(
+    row: BacktestResult,
+    strategy_names: dict[int, str] | None = None,
+) -> dict:
     m: dict[str, Any] = row.metrics or {}  # type: ignore[assignment]
     ct = row.created_at or datetime.now(timezone.utc)
     if ct.tzinfo is None:
@@ -286,7 +323,10 @@ def _db_row_to_history_item(row: BacktestResult) -> dict:
     return {
         "task_id": row.task_id or "",
         "code": row.stock_codes[0] if row.stock_codes else "",
-        "strategy": _strategy_name_for(row.strategy_id),  # type: ignore[arg-type]
+        "strategy": (strategy_names or {}).get(
+            cast(int | None, row.strategy_id) or 0,
+            "",
+        ),
         "status": row.status,
         "total_return": m.get("total_return"),
         "sharpe": m.get("sharpe"),

@@ -9,6 +9,7 @@ import { IndicatorPane } from '@/components/chart/IndicatorPane';
 import { FinancialPanel } from '@/components/financial/FinancialPanel';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { formatCurrency } from '@/lib/utils';
 import type { KlineData, Freq, IndicatorConfig } from '@/types';
 
@@ -134,16 +135,26 @@ export function StockDetailPage() {
           <CardContent>
             {chartLoading ? (
               <Skeleton className="h-[400px]" />
-            ) : chartData.length > 0 ? (
+            ) : chartData.length > 0 && indicatorsData ? (
               <div ref={chartContainerRef} className="relative">
-                <KlineChart
-                  data={chartData}
-                  indicators={indicatorsData!}
-                  indicatorConfigs={indicators}
-                  onCrosshairMove={handleCrosshairMove}
-                  onDateClick={handleDateClick}
-                  onTimeScaleReady={handleTimeScaleReady}
-                />
+                <ErrorBoundary
+                  label="KlineChart"
+                  resetKey={`${code}-${freq}`}
+                  fallback={
+                    <div role="alert" className="h-[400px] rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                      K 线图加载失败
+                    </div>
+                  }
+                >
+                  <KlineChart
+                    data={chartData}
+                    indicators={indicatorsData}
+                    indicatorConfigs={indicators}
+                    onCrosshairMove={handleCrosshairMove}
+                    onDateClick={handleDateClick}
+                    onTimeScaleReady={handleTimeScaleReady}
+                  />
+                </ErrorBoundary>
                 <ChartCrosshair
                   data={crosshair.data}
                   visible={crosshair.data !== null}
@@ -166,12 +177,18 @@ export function StockDetailPage() {
               <CardTitle className="text-sm">MACD</CardTitle>
             </CardHeader>
             <CardContent>
-              <IndicatorPane
-                type="MACD"
-                data={chartDataWithTime}
-                macd={indicatorsData.macd}
-                mainTimeScale={mainTimeScale}
-              />
+              <ErrorBoundary
+                label="MACD IndicatorPane"
+                resetKey={`${code}-${freq}-macd`}
+                fallback={<div role="alert" className="h-[150px] rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">MACD 加载失败</div>}
+              >
+                <IndicatorPane
+                  type="MACD"
+                  data={chartDataWithTime}
+                  macd={indicatorsData.macd}
+                  mainTimeScale={mainTimeScale}
+                />
+              </ErrorBoundary>
             </CardContent>
           </Card>
         </section>
@@ -184,12 +201,18 @@ export function StockDetailPage() {
               <CardTitle className="text-sm">RSI (14)</CardTitle>
             </CardHeader>
             <CardContent>
-              <IndicatorPane
-                type="RSI"
-                data={chartDataWithTime}
-                rsi={indicatorsData.rsi}
-                mainTimeScale={mainTimeScale}
-              />
+              <ErrorBoundary
+                label="RSI IndicatorPane"
+                resetKey={`${code}-${freq}-rsi`}
+                fallback={<div role="alert" className="h-[150px] rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">RSI 加载失败</div>}
+              >
+                <IndicatorPane
+                  type="RSI"
+                  data={chartDataWithTime}
+                  rsi={indicatorsData.rsi}
+                  mainTimeScale={mainTimeScale}
+                />
+              </ErrorBoundary>
             </CardContent>
           </Card>
         </section>

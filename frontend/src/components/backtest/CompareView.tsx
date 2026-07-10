@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BacktestResult } from '@/types';
 import { EquityCurve } from './EquityCurve';
 import { Card } from '@/components/ui/Card';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { formatPercent } from '@/lib/utils';
 
 interface CompareViewProps {
@@ -56,11 +57,21 @@ export function CompareView({ results }: CompareViewProps) {
         ))}
       </div>
 
-      <EquityCurve
-        equity={results[0].equity_curve}
-        comparisons={comparisons.filter((_, i) => i > 0)}
-        height={400}
-      />
+      <ErrorBoundary
+        label="Compare EquityCurve"
+        resetKey={selectedResults.map((r) => r.id).join(',')}
+        fallback={
+          <div role="alert" className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            净值曲线加载失败
+          </div>
+        }
+      >
+        <EquityCurve
+          equity={results[0].equity_curve}
+          comparisons={comparisons.filter((_, i) => i > 0)}
+          height={400}
+        />
+      </ErrorBoundary>
 
       <Card>
         <div className="overflow-x-auto">

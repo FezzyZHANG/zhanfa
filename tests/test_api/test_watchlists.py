@@ -129,6 +129,13 @@ def test_add_item_auto_creates_stock(client):
     assert any(i["code"] == "002142" for i in r.json()["items"])
 
 
+def test_add_item_rejects_invalid_code(client):
+    r = client.post("/api/watchlists", json={"name": "Test"})
+    wl_id = r.json()["id"]
+    r = client.post(f"/api/watchlists/{wl_id}/items", json={"code": "../000001"})
+    assert r.status_code == 422
+
+
 # ── Items: Remove ─────────────────────────────────────
 
 def test_remove_item(client):

@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from zhanfa.db.base import get_session
 from zhanfa.api.models import (
+    STOCK_CODE_PATTERN,
     StockSearchResult,
     WatchlistBatchAdd,
     WatchlistBatchDelete,
@@ -18,6 +21,8 @@ from zhanfa.api.models import (
 from zhanfa.api.services import watchlist_service
 
 router = APIRouter(prefix="/api/watchlists", tags=["watchlists"])
+
+StockCodePath = Annotated[str, Path(pattern=STOCK_CODE_PATTERN)]
 
 
 # ── Search (must be before /{wl_id} routes) ───────
@@ -97,7 +102,7 @@ def add_item(wl_id: int, body: WatchlistItemAdd, db: Session = Depends(get_sessi
 
 
 @router.delete("/{wl_id}/items/{code}")
-def remove_item(wl_id: int, code: str, db: Session = Depends(get_session)):
+def remove_item(wl_id: int, code: StockCodePath, db: Session = Depends(get_session)):
     removed = watchlist_service.remove_item(db, wl_id, code)
     if not removed:
         raise HTTPException(404, f"Item not found: watchlist={wl_id}, code={code}")
@@ -105,7 +110,7 @@ def remove_item(wl_id: int, code: str, db: Session = Depends(get_session)):
 
 
 @router.put("/{wl_id}/items/{code}", response_model=WatchlistResponse)
-def update_item_notes(wl_id: int, code: str, body: WatchlistItemUpdate, db: Session = Depends(get_session)):
+def update_item_notes(wl_id: int, code: StockCodePath, body: WatchlistItemUpdate, db: Session = Depends(get_session)):
     result = watchlist_service.update_item_notes(db, wl_id, code, body.notes)
     if result is None:
         raise HTTPException(404, f"Item not found: watchlist={wl_id}, code={code}")

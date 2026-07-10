@@ -4,7 +4,7 @@ import { fetchIndustryComparison } from '@/api/client';
 export function useIndustryComparison(industry: string) {
   return useQuery({
     queryKey: ['industryComparison', industry],
-    queryFn: () => fetchIndustryComparison(industry),
+    queryFn: ({ signal }) => fetchIndustryComparison(industry, { signal }),
     enabled: !!industry,
   });
 }
