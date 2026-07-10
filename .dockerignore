@@ -1,0 +1,14 @@
+.git
+.venv
+node_modules
+frontend/node_modules
+__pycache__
+*.py[cod]
+*.db
+*.db-*
+*.parquet
+.mypy_cache
+.pytest_cache
+.ruff_cache
+dist
+build

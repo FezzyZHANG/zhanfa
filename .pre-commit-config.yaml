@@ -19,10 +19,8 @@ repos:
         entry: uv run mypy src/
         language: system
         pass_filenames: false
-        stages: [manual]
       - id: frontend-lint
         name: frontend lint (npm)
         entry: python -c "import subprocess, sys; sys.exit(subprocess.call('npm run lint', cwd='frontend', shell=True))"
         language: system
         pass_filenames: false
-        stages: [manual]

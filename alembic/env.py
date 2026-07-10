@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -17,6 +18,10 @@ if config.config_file_name is not None:
 from zhanfa.db.base import Base
 import zhanfa.db.models  # noqa: F401 - ensure all models loaded for autogenerate
 target_metadata = Base.metadata
+
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

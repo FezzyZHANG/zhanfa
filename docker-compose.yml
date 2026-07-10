@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://zhanfa:zhanfa@db:5432/zhanfa
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-zhanfa}:${POSTGRES_PASSWORD:-zhanfa}@db:5432/${POSTGRES_DB:-zhanfa}
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - CORS_ORIGINS=http://localhost
@@ -34,15 +34,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: zhanfa
-      POSTGRES_PASSWORD: zhanfa
-      POSTGRES_DB: zhanfa
+      POSTGRES_USER: ${POSTGRES_USER:-zhanfa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zhanfa}
+      POSTGRES_DB: ${POSTGRES_DB:-zhanfa}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zhanfa"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zhanfa}"]
       interval: 5s
       timeout: 5s
       retries: 5
