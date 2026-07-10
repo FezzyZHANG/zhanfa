@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, field_validator
+
+STOCK_CODE_PATTERN = r"^\d{6}$"
+StockCode = Annotated[str, Field(pattern=STOCK_CODE_PATTERN)]
 
 
 # ── Strategy ──────────────────────────────────────────
@@ -45,7 +48,7 @@ class StrategyUpdate(BaseModel):
 # ── Stock ─────────────────────────────────────────────
 
 class StockInfo(BaseModel):
-    code: str
+    code: StockCode
     name: str
     exchange: str | None = None
     industry: str | None = None
@@ -71,7 +74,7 @@ class DailyDataPoint(BaseModel):
 
 
 class DailyResponse(BaseModel):
-    code: str
+    code: StockCode
     count: int
     data: list[DailyDataPoint]
 
@@ -87,13 +90,13 @@ class FinancialDataPoint(BaseModel):
 
 
 class FinancialResponse(BaseModel):
-    code: str
+    code: StockCode
     years: int
     data: list[FinancialDataPoint]
 
 
 class IndicatorSet(BaseModel):
-    code: str
+    code: StockCode
     date: date
     sma_20: float | None = None
     sma_60: float | None = None
@@ -108,7 +111,7 @@ class IndicatorSet(BaseModel):
 
 
 class IndicatorResponse(BaseModel):
-    code: str
+    code: StockCode
     count: int
     data: list[IndicatorSet]
 
@@ -124,7 +127,7 @@ class WatchlistUpdate(BaseModel):
 
 
 class WatchlistItemDetail(BaseModel):
-    code: str
+    code: StockCode
     name: str = ""
     added_at: datetime | None = None
     notes: str | None = None
@@ -139,7 +142,7 @@ class WatchlistResponse(BaseModel):
 
 
 class WatchlistItemAdd(BaseModel):
-    code: str
+    code: StockCode
     notes: str | None = None
 
 
@@ -148,20 +151,20 @@ class WatchlistItemUpdate(BaseModel):
 
 
 class WatchlistBatchAdd(BaseModel):
-    codes: list[str]
+    codes: list[StockCode]
 
 
 class WatchlistBatchMove(BaseModel):
     target_watchlist_id: int
-    codes: list[str]
+    codes: list[StockCode]
 
 
 class WatchlistBatchDelete(BaseModel):
-    codes: list[str]
+    codes: list[StockCode]
 
 
 class BatchPreviewItem(BaseModel):
-    code: str
+    code: StockCode
     name: str
     in_current: bool
     in_other: list[str] = Field(default_factory=list)
@@ -182,7 +185,7 @@ class DataStatus(BaseModel):
 
 
 class QuoteItem(BaseModel):
-    code: str
+    code: StockCode
     name: str
     latest_price: float | None = None
     change_pct: float | None = None
@@ -201,7 +204,7 @@ class WatchlistQuoteResponse(BaseModel):
 
 
 class StockSearchResult(BaseModel):
-    code: str
+    code: StockCode
     name: str
 
 
@@ -232,7 +235,7 @@ class TradeRecord(BaseModel):
 
 
 class BacktestRequest(BaseModel):
-    code: str
+    code: StockCode
     strategy: str
     start_date: str = "20200101"
     end_date: str = "21000101"
@@ -296,13 +299,14 @@ class BacktestHistoryItem(BaseModel):
 # ── Industry Comparison ───────────────────────────────
 
 class IndustryPeer(BaseModel):
-    code: str
+    code: StockCode
     name: str
-    roe: float = 0
-    gross_margin: float = 0
-    debt_ratio: float = 0
-    revenue_growth: float = 0
-    net_profit_growth: float = 0
+    roe: float | None = None
+    gross_margin: float | None = None
+    debt_ratio: float | None = None
+    revenue_growth: float | None = None
+    net_profit_growth: float | None = None
+    data_freshness: str = "missing"
 
 
 class IndustryComparisonResponse(BaseModel):
@@ -365,7 +369,7 @@ class MinuteCacheStatus(BaseModel):
 
 
 class StockDataStatus(BaseModel):
-    code: str
+    code: StockCode
     name: str = ""
     has_daily: bool = False
     daily_start: date | None = None
@@ -386,7 +390,7 @@ class StockDataStatus(BaseModel):
 # ── Data Refresh ──────────────────────────────────────
 
 class RefreshRequest(BaseModel):
-    codes: list[str] | None = None  # None = 刷新全部已缓存股票
+    codes: list[StockCode] | None = None  # None = 刷新全部已缓存股票
     freq: str = "daily"
     force: bool = False
     discover_new: bool = True
@@ -394,7 +398,7 @@ class RefreshRequest(BaseModel):
 
 
 class RefreshError(BaseModel):
-    code: str
+    code: StockCode
     error: str
 
 

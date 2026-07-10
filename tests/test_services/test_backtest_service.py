@@ -42,7 +42,7 @@ class TestSubmitBacktest:
         }
         task_id = submit_backtest(req)
         assert isinstance(task_id, str)
-        assert len(task_id) == 8
+        assert len(task_id) == 32
 
         task = _tasks[task_id]
         assert task["status"] == "pending"

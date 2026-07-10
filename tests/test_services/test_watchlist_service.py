@@ -148,7 +148,7 @@ class TestUpdateItemNotes:
 
     def test_returns_none_for_missing_code(self, db_with_stock):
         wl = create_watchlist(db_with_stock, "Test")
-        assert update_item_notes(db_with_stock, wl["id"], "nonexistent", "x") is None
+        assert update_item_notes(db_with_stock, wl["id"], "600519", "x") is None
 
 
 class TestBatchAddItems:
@@ -243,11 +243,11 @@ class TestGetWatchlistQuotes:
 
         mock_fetcher = MagicMock()
         mock_fetcher.daily.return_value = mock_df
-        mock_fetcher.financial.return_value = mock_fin
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = None  # force fallback to Fetcher
-        mock_store.date_range.return_value = None
+        mock_store.last_closes.return_value = {"000001": None}  # force fallback to Fetcher
+        mock_store.date_ranges.return_value = {"000001": None}
+        mock_store.load.return_value = mock_fin
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -275,14 +275,14 @@ class TestGetWatchlistQuotes:
         mock_fin = pd.DataFrame({"pe": [20.0], "pb": [3.0], "dividend_yield": [0.015]})
 
         mock_fetcher = MagicMock()
-        mock_fetcher.financial.return_value = mock_fin
 
         from datetime import datetime, timedelta, timezone
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = {"close": 1685.5, "prev_close": 1650.0}
-        mock_store.date_range.return_value = {"start": None, "end": None, "rows": 100}
+        mock_store.last_closes.return_value = {"600519": {"close": 1685.5, "prev_close": 1650.0}}
+        mock_store.date_ranges.return_value = {"600519": {"start": None, "end": None, "rows": 100}}
         mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
+        mock_store.load.return_value = mock_fin
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -319,12 +319,12 @@ class TestGetWatchlistQuotes:
 
         mock_fin = pd.DataFrame({"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]})
         mock_fetcher = MagicMock()
-        mock_fetcher.financial.return_value = mock_fin
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = {"close": 10.0}  # no prev_close
-        mock_store.date_range.return_value = {"start": None, "end": None, "rows": 100}
+        mock_store.last_closes.return_value = {"000001": {"close": 10.0}}  # no prev_close
+        mock_store.date_ranges.return_value = {"000001": {"start": None, "end": None, "rows": 100}}
         mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
+        mock_store.load.return_value = mock_fin
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -343,14 +343,14 @@ class TestGetWatchlistQuotes:
         add_item(db_with_stock, wl["id"], "000001")
 
         mock_fetcher = MagicMock()
-        mock_fetcher.financial.side_effect = RuntimeError("unavailable")
 
         from datetime import datetime, timedelta, timezone
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = {"close": 10.0, "prev_close": 9.5}
-        mock_store.date_range.return_value = None  # no financial cache either
+        mock_store.last_closes.return_value = {"000001": {"close": 10.0, "prev_close": 9.5}}
+        mock_store.date_ranges.return_value = {"000001": None}  # no financial cache
         mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=1)
+        mock_store.load.side_effect = RuntimeError("unavailable")  # financial read fails
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -371,11 +371,11 @@ class TestGetWatchlistQuotes:
 
         mock_fetcher = MagicMock()
         mock_fetcher.daily.side_effect = RuntimeError("offline")
-        mock_fetcher.financial.side_effect = RuntimeError("offline")
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = None
-        mock_store.date_range.return_value = None
+        mock_store.last_closes.return_value = {"000001": None}
+        mock_store.date_ranges.return_value = {"000001": None}
+        mock_store.load.side_effect = RuntimeError("offline")
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -403,15 +403,15 @@ class TestGetWatchlistQuotes:
                 "open": [10.0], "high": [11.0], "low": [9.0], "close": [10.5], "volume": [1000],
             })
 
+        mock_fin = pd.DataFrame({"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]})
+
         mock_fetcher = MagicMock()
         mock_fetcher.daily.side_effect = daily_side_effect
-        mock_fetcher.financial.return_value = pd.DataFrame(
-            {"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]}
-        )
 
         mock_store = MagicMock()
-        mock_store.last_close.return_value = None  # force Fetcher fallback
-        mock_store.date_range.return_value = None
+        mock_store.last_closes.return_value = {"000001": None, "600519": None}  # force Fetcher fallback
+        mock_store.date_ranges.return_value = {"000001": None, "600519": None}
+        mock_store.load.return_value = mock_fin
 
         with (
             patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
@@ -438,6 +438,87 @@ class TestGetWatchlistQuotes:
         assert any("000001" in msg for msg in warnings), (
             f"Expected warning with failing code=000001, got: {warnings}"
         )
+
+
+class TestGetWatchlistQuotesPerformance:
+    """TICKET-048: Performance regression tests for batch cache reads."""
+
+    def test_cache_hit_avoids_live_fetch(self, db_with_stock):
+        """N cached stocks should NOT trigger N live fetches."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        wl = create_watchlist(db_with_stock, "Perf")
+        batch_add_items(db_with_stock, wl["id"], ["000001", "600519"])
+
+        mock_fin = pd.DataFrame({"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]})
+        mock_fetcher = MagicMock()
+        mock_fetcher.financial.return_value = mock_fin
+
+        from datetime import datetime, timedelta, timezone
+
+        mock_store = MagicMock()
+        mock_store.last_closes.return_value = {
+            "000001": {"close": 10.0, "prev_close": 9.5},
+            "600519": {"close": 1685.5, "prev_close": 1650.0},
+        }
+        mock_store.date_ranges.return_value = {
+            "000001": {"start": None, "end": None, "rows": 100},
+            "600519": {"start": None, "end": None, "rows": 200},
+        }
+        mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
+        # Store.load returns cached financial
+        mock_store.load.return_value = mock_fin
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            result = get_watchlist_quotes(db_with_stock, wl["id"])
+
+        assert result is not None
+        assert len(result["items"]) == 2
+        # Cache hit: Fetcher.daily should never be called
+        mock_fetcher.daily.assert_not_called()
+
+    def test_only_cache_miss_triggers_live_fetch(self, db_with_stock):
+        """Only stocks with cache miss fall back to live fetch."""
+        from zhanfa.api.services.watchlist_service import get_watchlist_quotes
+
+        wl = create_watchlist(db_with_stock, "Perf")
+        batch_add_items(db_with_stock, wl["id"], ["000001", "600519"])
+
+        mock_fin = pd.DataFrame({"pe": [15.0], "pb": [2.0], "dividend_yield": [0.02]})
+
+        mock_fetcher = MagicMock()
+        mock_fetcher.daily.return_value = pd.DataFrame({
+            "open": [10.0], "high": [11.0], "low": [9.0], "close": [10.5], "volume": [1000],
+        })
+        mock_fetcher.financial.return_value = mock_fin
+
+        from datetime import datetime, timedelta, timezone
+
+        mock_store = MagicMock()
+        # 000001 is cached, 600519 is miss
+        mock_store.last_closes.return_value = {
+            "000001": {"close": 10.0, "prev_close": 9.5},
+            "600519": None,
+        }
+        mock_store.date_ranges.return_value = {
+            "000001": {"start": None, "end": None, "rows": 100},
+            "600519": None,
+        }
+        mock_store.mtime.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
+        mock_store.load.return_value = mock_fin
+
+        with (
+            patch("zhanfa.api.services.watchlist_service.Fetcher", return_value=mock_fetcher),
+            patch("zhanfa.data.store.Store", return_value=mock_store),
+        ):
+            result = get_watchlist_quotes(db_with_stock, wl["id"])
+
+        assert result is not None
+        # Only 600519 triggered fetch
+        mock_fetcher.daily.assert_called_once_with("600519")
 
 
 class TestAddItemEdgeCases:

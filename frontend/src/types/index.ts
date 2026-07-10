@@ -114,11 +114,12 @@ export interface FinancialData {
 export interface IndustryPeer {
   code: string;
   name: string;
-  roe: number;
-  gross_margin: number;
-  debt_ratio: number;
-  revenue_growth: number;
-  net_profit_growth: number;
+  roe: number | null;
+  gross_margin: number | null;
+  debt_ratio: number | null;
+  revenue_growth: number | null;
+  net_profit_growth: number | null;
+  data_freshness: string;
 }
 
 export interface IndustryComparison {

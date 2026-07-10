@@ -4,14 +4,14 @@ import { fetchStocks, fetchStock, fetchKline, fetchFinancials } from '@/api/clie
 export function useStocks() {
   return useQuery({
     queryKey: ['stocks'],
-    queryFn: fetchStocks,
+    queryFn: ({ signal }) => fetchStocks({ signal }),
   });
 }
 
 export function useStock(code: string) {
   return useQuery({
     queryKey: ['stocks', code],
-    queryFn: () => fetchStock(code),
+    queryFn: ({ signal }) => fetchStock(code, { signal }),
     enabled: !!code,
   });
 }
@@ -19,7 +19,7 @@ export function useStock(code: string) {
 export function useKline(code: string, start?: string, end?: string, freq?: string) {
   return useQuery({
     queryKey: ['kline', code, start, end, freq],
-    queryFn: () => fetchKline(code, start, end, freq),
+    queryFn: ({ signal }) => fetchKline(code, start, end, freq, { signal }),
     enabled: !!code,
   });
 }
@@ -27,7 +27,7 @@ export function useKline(code: string, start?: string, end?: string, freq?: stri
 export function useFinancials(code: string) {
   return useQuery({
     queryKey: ['financials', code],
-    queryFn: () => fetchFinancials(code),
+    queryFn: ({ signal }) => fetchFinancials(code, { signal }),
     enabled: !!code,
   });
 }

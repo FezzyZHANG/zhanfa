@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useStrategies } from '@/hooks/useStrategies';
 import { useBacktestResults } from '@/hooks/useBacktests';
@@ -30,10 +30,11 @@ export function BacktestPage() {
   const pollResult = useBacktestTask(taskId);
   const [showCompare, setShowCompare] = useState(false);
 
-  // Navigate to detail when poll result completes
-  if (pollResult && pollResult.status === 'done' && taskId) {
-    navigate({ to: '/backtest/$backtestId', params: { backtestId: String(pollResult.id) } });
-  }
+  useEffect(() => {
+    if (pollResult?.status === 'done' && taskId) {
+      navigate({ to: '/backtest/$backtestId', params: { backtestId: String(pollResult.id) } });
+    }
+  }, [navigate, pollResult?.id, pollResult?.status, taskId]);
 
   const completedBacktests = backtests?.filter((b) => b.status === 'done') || [];
 

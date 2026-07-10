@@ -76,7 +76,7 @@ export interface ChartIndicatorResults {
 
 export interface ChartDataResult {
   data: KlineData[];
-  indicators: ChartIndicatorResults;
+  indicators: ChartIndicatorResults | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -93,7 +93,7 @@ export function useChartData(
 
   const result = useMemo(() => {
     if (!raw || raw.length === 0) {
-      return { data: [] as KlineData[], indicators: null as unknown as ChartIndicatorResults };
+      return { data: [] as KlineData[], indicators: null };
     }
 
     const sorted = [...raw].sort((a, b) => a.date.localeCompare(b.date));

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -9,6 +10,8 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 logger = logging.getLogger(__name__)
+
+_SAFE_PATH_SEGMENT = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 class Store:
@@ -18,7 +21,22 @@ class Store:
         self.base = Path(base_dir)
 
     def _path(self, code: str, freq: str = "daily") -> Path:
+        self._validate_path_segment(code, "code")
+        self._validate_path_segment(freq, "freq")
         return self.base / freq / f"{code}.parquet"
+
+    @staticmethod
+    def _validate_path_segment(value: str, field: str) -> None:
+        text = str(value)
+        if (
+            not text
+            or ".." in text
+            or "/" in text
+            or "\\" in text
+            or ":" in text
+            or not _SAFE_PATH_SEGMENT.fullmatch(text)
+        ):
+            raise ValueError(f"Invalid cache {field}: {value!r}")
 
     def save(self, code: str, df: pd.DataFrame, freq: str = "daily") -> None:
         path = self._path(code, freq)
@@ -127,6 +145,35 @@ class Store:
             }
         return {"start": None, "end": None, "rows": pf.metadata.num_rows}
 
+    def last_closes(self, codes: list[str], freq: str = "daily") -> dict[str, dict | None]:
+        """Batch read last close for multiple codes.
+
+        Returns a dict mapping code → last_close result (or None if cache miss).
+        Reads are tried per-file; a single corrupted file won't fail the batch.
+        """
+        result: dict[str, dict | None] = {}
+        for code in codes:
+            try:
+                result[code] = self.last_close(code, freq)
+            except Exception:
+                logger.warning("Failed to read last_close (code=%s, freq=%s)", code, freq, exc_info=True)
+                result[code] = None
+        return result
+
+    def date_ranges(self, codes: list[str], freq: str = "daily") -> dict[str, dict | None]:
+        """Batch read date range for multiple codes.
+
+        Returns a dict mapping code → date_range result (or None if cache miss).
+        """
+        result: dict[str, dict | None] = {}
+        for code in codes:
+            try:
+                result[code] = self.date_range(code, freq)
+            except Exception:
+                logger.warning("Failed to read date_range (code=%s, freq=%s)", code, freq, exc_info=True)
+                result[code] = None
+        return result
+
     def save_batch(self, data: dict[str, pd.DataFrame], freq: str = "daily") -> None:
         """批量保存 {code: DataFrame}"""
         for code, df in data.items():
@@ -183,7 +230,7 @@ class Store:
                             if global_max_date is None or _max > global_max_date:
                                 global_max_date = _max
                 except Exception:
-                    pass
+                    logger.warning("Failed to scan parquet stats: %s", f, exc_info=True)
 
         daily_count = sum(v for k, v in freq_stats.items() if k not in ("meta", "index_daily"))
         return {

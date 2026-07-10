@@ -7,6 +7,7 @@ import csv as csv_module
 import logging
 from typing import TYPE_CHECKING
 
+import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -291,10 +292,9 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
     from zhanfa.data.store import Store
 
     store = Store()
-    fetcher = Fetcher(store=store)
     codes = [item.code for item in wl.items]
 
-    # Pre-load stock names from DB
+    # Pre-load stock names from DB (single query)
     names: dict[str, str] = {}
     if codes:
         try:
@@ -306,6 +306,29 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
         except Exception:
             logger.exception("Failed to query stock names for quotes (codes=%s)", codes)
 
+    # ── Batch cache reads ──
+    close_map = store.last_closes(codes, "daily") if codes else {}
+    daily_range_map = store.date_ranges(codes, "daily") if codes else {}
+    fin_range_map = store.date_ranges(codes, "financial") if codes else {}
+
+    # ── Identify cache-miss codes that need live fetch ──
+    cache_miss_codes = [c for c in codes if close_map.get(c) is None]
+
+    # ── Batch live fetch for cache misses (only if needed) ──
+    live_daily: dict[str, pd.DataFrame] = {}
+    if cache_miss_codes:
+        fetcher = Fetcher(store=store)
+        for code in cache_miss_codes:
+            try:
+                df = fetcher.daily(code)
+                if not df.empty:
+                    live_daily[code] = df
+            except Exception:
+                logger.warning(
+                    "Failed to live-fetch daily data for quotes (code=%s)", code, exc_info=True
+                )
+
+    # ── Assemble items ──
     items = []
     for item in wl.items:
         code = item.code
@@ -324,54 +347,47 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
         }
         data_freshness = "unknown"
 
-        # ── Daily price: cache-first ──
-        try:
-            close_info = store.last_close(code, "daily")
-            if close_info:
-                latest_price = float(close_info["close"])
-                data_status["has_daily"] = True
-                data_freshness = _compute_freshness(store, code, "daily")
-                prev_close = close_info.get("prev_close")
+        # ── Daily price: batch cache result first ──
+        close_info = close_map.get(code)
+        if close_info is not None:
+            latest_price = float(close_info["close"])
+            data_status["has_daily"] = True
+            data_freshness = _compute_freshness(store, code, "daily")
+            prev_close = close_info.get("prev_close")
+            if prev_close and prev_close != 0:
+                change_pct = (latest_price - float(prev_close)) / float(prev_close)
+            dr = daily_range_map.get(code)
+            if dr:
+                data_status["daily_start"] = dr.get("start")
+                data_status["daily_end"] = dr.get("end")
+        elif code in live_daily:
+            # Live-fetched fallback
+            df = live_daily[code]
+            latest = df.iloc[-1]
+            latest_price = float(latest["close"])
+            data_status["has_daily"] = True
+            data_freshness = "live"
+            if len(df) >= 2:
+                prev_close = float(df.iloc[-2]["close"])
                 if prev_close and prev_close != 0:
-                    change_pct = (latest_price - float(prev_close)) / float(prev_close)
-
-                # Get date range from cache
-                dr = store.date_range(code, "daily")
-                if dr:
-                    data_status["daily_start"] = dr.get("start")
-                    data_status["daily_end"] = dr.get("end")
-            else:
-                # Fall back to live fetch
-                df = fetcher.daily(code)
-                if not df.empty:
-                    latest = df.iloc[-1]
-                    latest_price = float(latest["close"])
-                    data_status["has_daily"] = True
-                    data_freshness = "live"
-                    if len(df) >= 2:
-                        prev_close = float(df.iloc[-2]["close"])
-                        if prev_close and prev_close != 0:
-                            change_pct = (latest_price - prev_close) / prev_close
-                    data_status["daily_start"] = (
-                        df.index[0].date() if hasattr(df.index[0], "date") else None
-                    )
-                    data_status["daily_end"] = (
-                        df.index[-1].date() if hasattr(df.index[-1], "date") else None
-                    )
-        except Exception:
-            logger.warning(
-                "Failed to read daily data for quotes (code=%s)", code, exc_info=True
+                    change_pct = (latest_price - prev_close) / prev_close
+            data_status["daily_start"] = (
+                df.index[0].date() if hasattr(df.index[0], "date") else None
+            )
+            data_status["daily_end"] = (
+                df.index[-1].date() if hasattr(df.index[-1], "date") else None
             )
 
-        # ── Financial: cache-first ──
-        try:
-            dr = store.date_range(code, "financial")
-            if dr and dr.get("rows", 0) > 0:
-                data_status["has_financial"] = True
-                data_status["financial_periods"] = dr["rows"]
+        # ── Financial: batch cache result ──
+        fin_dr = fin_range_map.get(code)
+        if fin_dr and fin_dr.get("rows", 0) > 0:
+            data_status["has_financial"] = True
+            data_status["financial_periods"] = fin_dr["rows"]
 
-            fin = fetcher.financial(code)
-            if not fin.empty:
+        # Read financial indicators from cache without live fetch
+        try:
+            fin = _read_cached_financial(store, code)
+            if fin is not None and not fin.empty:
                 latest_fin = fin.iloc[-1]
                 pe = _safe_float(latest_fin.get("pe"))
                 pb = _safe_float(latest_fin.get("pb"))
@@ -381,9 +397,7 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
                     data_status["financial_periods"] = len(fin)
         except Exception:
             logger.warning(
-                "Failed to read financial data for quotes (code=%s)",
-                code,
-                exc_info=True,
+                "Failed to read financial data for quotes (code=%s)", code, exc_info=True
             )
 
         items.append(
@@ -402,6 +416,19 @@ def get_watchlist_quotes(db: Session, wl_id: int) -> dict | None:
         )
 
     return {"id": wl.id, "name": wl.name, "items": items}
+
+
+def _read_cached_financial(store: "Store", code: str) -> "pd.DataFrame | None":
+    """Read cached financial data without triggering live fetch."""
+    try:
+        return store.load(code, "financial")
+    except Exception:
+        logger.warning(
+            "Failed to read cached financial data for quotes (code=%s)",
+            code,
+            exc_info=True,
+        )
+        return None
 
 
 # ── Search ─────────────────────────────────────────

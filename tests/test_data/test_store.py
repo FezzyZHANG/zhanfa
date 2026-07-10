@@ -1,7 +1,6 @@
 """Store 单元测试"""
 
 import tempfile
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -30,7 +29,8 @@ def sample_df():
 
 def _assert_frame_equal(a, b):
     """parquet 往返不保留 DatetimeIndex.freq，比较前统一去除"""
-    a = a.copy(); b = b.copy()
+    a = a.copy()
+    b = b.copy()
     if isinstance(a.index, pd.DatetimeIndex):
         a.index.freq = None
     if isinstance(b.index, pd.DatetimeIndex):
@@ -89,3 +89,16 @@ class TestStore:
     def test_file_path(self, store):
         expected = store.base / "daily" / "000001.parquet"
         assert store._path("000001") == expected
+
+    @pytest.mark.parametrize(
+        ("code", "freq"),
+        [
+            ("../000001", "daily"),
+            ("000001/../../x", "daily"),
+            ("000001", "../daily"),
+            ("000001", "daily\\..\\x"),
+        ],
+    )
+    def test_rejects_path_traversal(self, store, code, freq):
+        with pytest.raises(ValueError, match="Invalid cache"):
+            store._path(code, freq)

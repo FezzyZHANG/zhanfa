@@ -88,13 +88,18 @@ def test_stock_status_nonexistent(client):
     with tempfile.TemporaryDirectory() as tmp:
         real = Store(str(tmp))
         with patch("zhanfa.api.routers.data.Store", return_value=real):
-            r = client.get("/api/data/stock-status?code=nonexistent")
+            r = client.get("/api/data/stock-status?code=999998")
             assert r.status_code == 200
             data = r.json()
-            assert data["code"] == "nonexistent"
+            assert data["code"] == "999998"
             assert data["has_daily"] is False
             assert data["has_financial"] is False
             assert data["in_watchlist"] == []
+
+
+def test_stock_status_rejects_invalid_code(client):
+    r = client.get("/api/data/stock-status?code=../000001")
+    assert r.status_code == 422
 
 
 def test_stock_status_corrupted_cache_returns_200_and_logs(client, caplog):
@@ -194,7 +199,7 @@ def test_refresh_handles_failure(client):
     )
 
     def side_effect(code):
-        if code == "bad_code":
+        if code == "600519":
             raise RuntimeError("fail")
         return pd.DataFrame({"close": [1.0]})
 
@@ -203,14 +208,14 @@ def test_refresh_handles_failure(client):
     with patch("zhanfa.automation.workflows.Fetcher", return_value=mock_fetcher):
         r = client.post(
             "/api/data/refresh",
-            json={"codes": ["000001", "bad_code"], "freq": "daily", "force": False},
+            json={"codes": ["000001", "600519"], "freq": "daily", "force": False},
         )
     assert r.status_code == 200
     data = r.json()
     assert data["updated"] == 1
     assert data["failed"] == 1
     assert len(data["errors"]) == 1
-    assert data["errors"][0]["code"] == "bad_code"
+    assert data["errors"][0]["code"] == "600519"
 
 
 def test_refresh_minute_15_calls_fetcher_minute(client):

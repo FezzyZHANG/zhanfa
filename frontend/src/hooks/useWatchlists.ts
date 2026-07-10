@@ -19,14 +19,14 @@ import {
 export function useWatchlists() {
   return useQuery({
     queryKey: ['watchlists'],
-    queryFn: fetchWatchlists,
+    queryFn: ({ signal }) => fetchWatchlists({ signal }),
   });
 }
 
 export function useWatchlistQuotes(wlId: number | null) {
   return useQuery({
     queryKey: ['watchlist-quotes', wlId],
-    queryFn: () => fetchWatchlistQuotes(wlId!),
+    queryFn: ({ signal }) => fetchWatchlistQuotes(wlId!, { signal }),
     enabled: wlId !== null,
     refetchInterval: 30_000,
   });
@@ -35,7 +35,7 @@ export function useWatchlistQuotes(wlId: number | null) {
 export function useSearchStocks(q: string) {
   return useQuery({
     queryKey: ['stock-search', q],
-    queryFn: () => searchStocks(q),
+    queryFn: ({ signal }) => searchStocks(q, { signal }),
     enabled: q.length >= 1,
     staleTime: 30_000,
   });

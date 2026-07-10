@@ -9,12 +9,14 @@ interface IndustryRadarProps {
 }
 
 export function IndustryRadar({ stockName, peers, currentStockPeer, height = 350 }: IndustryRadarProps) {
+  const n = (v: number | null) => v ?? 0;
+
   const indicators = [
-    { name: 'ROE', max: Math.max(0.4, ...peers.map((p) => p.roe * 1.2)) },
-    { name: '毛利率', max: Math.max(0.8, ...peers.map((p) => p.gross_margin * 1.2)) },
-    { name: '负债率', max: Math.max(0.8, ...peers.map((p) => p.debt_ratio * 1.2)) },
-    { name: '营收增速', max: Math.max(0.3, ...peers.map((p) => Math.max(p.revenue_growth * 1.2, 0.1))) },
-    { name: '利润增速', max: Math.max(0.3, ...peers.map((p) => Math.max(p.net_profit_growth * 1.2, 0.1))) },
+    { name: 'ROE', max: Math.max(0.4, ...peers.map((p) => n(p.roe) * 1.2)) },
+    { name: '毛利率', max: Math.max(0.8, ...peers.map((p) => n(p.gross_margin) * 1.2)) },
+    { name: '负债率', max: Math.max(0.8, ...peers.map((p) => n(p.debt_ratio) * 1.2)) },
+    { name: '营收增速', max: Math.max(0.3, ...peers.map((p) => Math.max(n(p.revenue_growth) * 1.2, 0.1))) },
+    { name: '利润增速', max: Math.max(0.3, ...peers.map((p) => Math.max(n(p.net_profit_growth) * 1.2, 0.1))) },
   ];
 
   const seriesData = peers.map((peer, idx) => {
@@ -25,7 +27,7 @@ export function IndustryRadar({ stockName, peers, currentStockPeer, height = 350
       type: 'radar' as const,
       data: [
         {
-          value: [peer.roe, peer.gross_margin, peer.debt_ratio, peer.revenue_growth, peer.net_profit_growth],
+          value: [n(peer.roe), n(peer.gross_margin), n(peer.debt_ratio), n(peer.revenue_growth), n(peer.net_profit_growth)],
           name: peer.name,
         },
       ],

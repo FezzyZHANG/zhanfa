@@ -5,14 +5,14 @@ import type { RefreshRequest } from '@/types';
 export function useDataStats() {
   return useQuery({
     queryKey: ['data-stats'],
-    queryFn: fetchDataStats,
+    queryFn: ({ signal }) => fetchDataStats({ signal }),
   });
 }
 
 export function useStockDataStatus(code: string) {
   return useQuery({
     queryKey: ['data-stock-status', code],
-    queryFn: () => fetchStockDataStatus(code),
+    queryFn: ({ signal }) => fetchStockDataStatus(code, { signal }),
     enabled: !!code,
   });
 }

@@ -42,8 +42,62 @@ const api = axios.create({
 
 const USE_MOCK = import.meta.env.VITE_ENABLE_MOCK === 'true';
 
-function delay<T>(data: T, ms = 200): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(data), ms));
+interface RequestOptions {
+  signal?: AbortSignal;
+}
+
+interface ApiRequestConfig {
+  params?: unknown;
+  signal?: AbortSignal;
+}
+
+function signalConfig(options: RequestOptions): ApiRequestConfig | undefined {
+  return options.signal ? { signal: options.signal } : undefined;
+}
+
+function paramsConfig(params: unknown, options: RequestOptions): ApiRequestConfig {
+  return options.signal ? { params, signal: options.signal } : { params };
+}
+
+function apiGet<T>(url: string, config?: ApiRequestConfig) {
+  return config ? api.get<T>(url, config) : api.get<T>(url);
+}
+
+function apiPost<T>(url: string, body?: unknown, config?: ApiRequestConfig) {
+  if (config) return api.post<T>(url, body, config);
+  return body === undefined ? api.post<T>(url) : api.post<T>(url, body);
+}
+
+function apiPut<T>(url: string, body: unknown, config?: ApiRequestConfig) {
+  return config ? api.put<T>(url, body, config) : api.put<T>(url, body);
+}
+
+function apiDelete(url: string, config?: ApiRequestConfig) {
+  return config ? api.delete(url, config) : api.delete(url);
+}
+
+function createAbortError(): Error {
+  const error = new Error('Aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function delay<T>(data: T, ms = 200, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => resolve(data), ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(timer);
+        reject(createAbortError());
+      },
+      { once: true },
+    );
+  });
 }
 
 // ── Strategies ──────────────────────────────────────
@@ -51,7 +105,7 @@ function delay<T>(data: T, ms = 200): Promise<T> {
 export async function fetchStrategies(params?: {
   category?: string;
   search?: string;
-}): Promise<Strategy[]> {
+}, options: RequestOptions = {}): Promise<Strategy[]> {
   if (USE_MOCK) {
     let result = mockStrategies;
     if (params?.category) {
@@ -65,31 +119,29 @@ export async function fetchStrategies(params?: {
           s.description.toLowerCase().includes(kw)
       );
     }
-    return delay(result);
+    return delay(result, 200, options.signal);
   }
-  const { data } = await api.get<Strategy[]>('/strategies', { params });
+  const { data } = await apiGet<Strategy[]>('/strategies', paramsConfig(params, options));
   return data;
 }
 
-export async function fetchStrategy(id: number): Promise<Strategy | undefined> {
-  if (USE_MOCK) return delay(mockStrategies.find((s) => s.id === id));
-  const { data } = await api.get<Strategy>(`/strategies/${id}`);
+export async function fetchStrategy(id: number, options: RequestOptions = {}): Promise<Strategy | undefined> {
+  if (USE_MOCK) return delay(mockStrategies.find((s) => s.id === id), 200, options.signal);
+  const { data } = await apiGet<Strategy>(`/strategies/${id}`, signalConfig(options));
   return data;
 }
 
 // ── Stocks ──────────────────────────────────────────
 
-export async function fetchStocks(): Promise<StockInfo[]> {
-  if (USE_MOCK) return delay(mockStocks);
-  const { data } = await api.get<{ items: StockInfo[] }>('/stocks', {
-    params: { page_size: 200 },
-  });
+export async function fetchStocks(options: RequestOptions = {}): Promise<StockInfo[]> {
+  if (USE_MOCK) return delay(mockStocks, 200, options.signal);
+  const { data } = await apiGet<{ items: StockInfo[] }>('/stocks', paramsConfig({ page_size: 200 }, options));
   return data.items ?? [];
 }
 
-export async function fetchStock(code: string): Promise<StockInfo | undefined> {
-  if (USE_MOCK) return delay(mockStocks.find((s) => s.code === code));
-  const { data } = await api.get<StockInfo>(`/stocks/${code}`);
+export async function fetchStock(code: string, options: RequestOptions = {}): Promise<StockInfo | undefined> {
+  if (USE_MOCK) return delay(mockStocks.find((s) => s.code === code), 200, options.signal);
+  const { data } = await apiGet<StockInfo>(`/stocks/${code}`, signalConfig(options));
   return data;
 }
 
@@ -100,11 +152,13 @@ export async function fetchKline(
   start?: string,
   end?: string,
   freq?: string,
+  options: RequestOptions = {},
 ): Promise<KlineData[]> {
-  if (USE_MOCK) return delay(mockGetKline(code, start, end), 300);
-  const { data } = await api.get<{ data: KlineData[] }>(
+  if (USE_MOCK) return delay(mockGetKline(code, start, end), 300, options.signal);
+  const params = freq === undefined ? { start, end } : { start, end, freq };
+  const { data } = await apiGet<{ data: KlineData[] }>(
     `/stocks/${code}/daily`,
-    { params: { start, end, freq } },
+    paramsConfig(params, options),
   );
   return (data.data ?? []).map((d) => {
     const rawDate = typeof d.date === 'string' ? d.date : String(d.date);
@@ -117,98 +171,131 @@ export async function fetchKline(
 
 // ── Financial ───────────────────────────────────────
 
-export async function fetchFinancials(code: string): Promise<FinancialData[]> {
-  if (USE_MOCK) return delay(mockFinancial[code] || []);
-  const { data } = await api.get<{ data: FinancialData[] }>(`/stocks/${code}/financial`);
+export async function fetchFinancials(code: string, options: RequestOptions = {}): Promise<FinancialData[]> {
+  if (USE_MOCK) return delay(mockFinancial[code] || [], 200, options.signal);
+  const { data } = await apiGet<{ data: FinancialData[] }>(
+    `/stocks/${code}/financial`,
+    signalConfig(options),
+  );
   return data.data ?? [];
 }
 
 // ── Industry comparison ─────────────────────────────
 
-export async function fetchIndustryComparison(industry: string): Promise<IndustryComparison | undefined> {
-  if (USE_MOCK) return delay(mockIndustryComparison[industry]);
-  const { data } = await api.get<IndustryComparison>(
-    `/stocks/industry/${encodeURIComponent(industry)}/comparison`
+export async function fetchIndustryComparison(
+  industry: string,
+  options: RequestOptions = {},
+): Promise<IndustryComparison | undefined> {
+  if (USE_MOCK) return delay(mockIndustryComparison[industry], 200, options.signal);
+  const { data } = await apiGet<IndustryComparison>(
+    `/stocks/industry/${encodeURIComponent(industry)}/comparison`,
+    signalConfig(options),
   );
   return data;
 }
 
 // ── Watchlists ──────────────────────────────────────
 
-export async function fetchWatchlists(): Promise<Watchlist[]> {
-  if (USE_MOCK) return delay(mockWatchlists);
-  const { data } = await api.get<Watchlist[]>('/watchlists');
+export async function fetchWatchlists(options: RequestOptions = {}): Promise<Watchlist[]> {
+  if (USE_MOCK) return delay(mockWatchlists, 200, options.signal);
+  const { data } = await apiGet<Watchlist[]>('/watchlists', signalConfig(options));
   return data;
 }
 
-export async function createWatchlist(name: string): Promise<Watchlist> {
+export async function createWatchlist(name: string, options: RequestOptions = {}): Promise<Watchlist> {
   if (USE_MOCK) {
     const wl: Watchlist = { id: Date.now(), name, stock_count: 0, items: [], created_at: new Date().toISOString() };
-    return delay(wl);
+    return delay(wl, 200, options.signal);
   }
-  const { data } = await api.post<Watchlist>('/watchlists', { name });
+  const { data } = await apiPost<Watchlist>('/watchlists', { name }, signalConfig(options));
   return data;
 }
 
-export async function renameWatchlist(id: number, name: string): Promise<Watchlist> {
-  if (USE_MOCK) return delay({ ...mockWatchlists.find((w) => w.id === id)!, name });
-  const { data } = await api.put<Watchlist>(`/watchlists/${id}`, { name });
+export async function renameWatchlist(id: number, name: string, options: RequestOptions = {}): Promise<Watchlist> {
+  if (USE_MOCK) return delay({ ...mockWatchlists.find((w) => w.id === id)!, name }, 200, options.signal);
+  const { data } = await apiPut<Watchlist>(`/watchlists/${id}`, { name }, signalConfig(options));
   return data;
 }
 
-export async function deleteWatchlist(id: number): Promise<void> {
-  if (USE_MOCK) return delay(undefined);
-  await api.delete(`/watchlists/${id}`);
+export async function deleteWatchlist(id: number, options: RequestOptions = {}): Promise<void> {
+  if (USE_MOCK) return delay(undefined, 200, options.signal);
+  await apiDelete(`/watchlists/${id}`, signalConfig(options));
 }
 
 export async function addToWatchlist(
   watchlistId: number,
   stockCode: string,
-  notes?: string
+  notes?: string,
+  options: RequestOptions = {},
 ): Promise<Watchlist> {
-  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!);
-  const { data } = await api.post<Watchlist>(`/watchlists/${watchlistId}/items`, { code: stockCode, notes });
+  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!, 200, options.signal);
+  const body = notes === undefined ? { code: stockCode } : { code: stockCode, notes };
+  const { data } = await apiPost<Watchlist>(
+    `/watchlists/${watchlistId}/items`,
+    body,
+    signalConfig(options),
+  );
   return data;
 }
 
 export async function removeFromWatchlist(
   watchlistId: number,
-  stockCode: string
+  stockCode: string,
+  options: RequestOptions = {},
 ): Promise<void> {
-  if (USE_MOCK) return delay(undefined);
-  await api.delete(`/watchlists/${watchlistId}/items/${stockCode}`);
+  if (USE_MOCK) return delay(undefined, 200, options.signal);
+  await apiDelete(`/watchlists/${watchlistId}/items/${stockCode}`, signalConfig(options));
 }
 
 export async function updateItemNotes(
   watchlistId: number,
   stockCode: string,
-  notes: string | null
+  notes: string | null,
+  options: RequestOptions = {},
 ): Promise<Watchlist> {
-  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!);
-  const { data } = await api.put<Watchlist>(`/watchlists/${watchlistId}/items/${stockCode}`, { notes });
+  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!, 200, options.signal);
+  const { data } = await apiPut<Watchlist>(
+    `/watchlists/${watchlistId}/items/${stockCode}`,
+    { notes },
+    signalConfig(options),
+  );
   return data;
 }
 
 export async function batchAddItems(
   watchlistId: number,
-  codes: string[]
+  codes: string[],
+  options: RequestOptions = {},
 ): Promise<Watchlist> {
-  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!);
-  const { data } = await api.post<Watchlist>(`/watchlists/${watchlistId}/items/batch`, { codes });
+  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === watchlistId)!, 200, options.signal);
+  const { data } = await apiPost<Watchlist>(
+    `/watchlists/${watchlistId}/items/batch`,
+    { codes },
+    signalConfig(options),
+  );
   return data;
 }
 
 export async function batchMoveItems(
   fromWlId: number,
   toWlId: number,
-  codes: string[]
+  codes: string[],
+  options: RequestOptions = {},
 ): Promise<Watchlist> {
-  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === fromWlId)!);
-  const { data } = await api.post<Watchlist>(`/watchlists/${fromWlId}/items/batch-move`, { target_watchlist_id: toWlId, codes });
+  if (USE_MOCK) return delay(mockWatchlists.find((w) => w.id === fromWlId)!, 200, options.signal);
+  const { data } = await apiPost<Watchlist>(
+    `/watchlists/${fromWlId}/items/batch-move`,
+    { target_watchlist_id: toWlId, codes },
+    signalConfig(options),
+  );
   return data;
 }
 
-export async function batchAddPreview(wlId: number, codes: string[]): Promise<BatchPreviewResponse> {
+export async function batchAddPreview(
+  wlId: number,
+  codes: string[],
+  options: RequestOptions = {},
+): Promise<BatchPreviewResponse> {
   if (USE_MOCK) {
     // Simple mock: mark all as new
     const wl = mockWatchlists.find((w) => w.id === wlId);
@@ -222,26 +309,34 @@ export async function batchAddPreview(wlId: number, codes: string[]): Promise<Ba
       })),
       new_count: codes.filter((c) => !existing.has(c)).length,
       existing_count: codes.filter((c) => existing.has(c)).length,
-    });
+    }, 200, options.signal);
   }
-  const { data } = await api.post<BatchPreviewResponse>(`/watchlists/${wlId}/items/batch/preview`, { codes });
+  const { data } = await apiPost<BatchPreviewResponse>(
+    `/watchlists/${wlId}/items/batch/preview`,
+    { codes },
+    signalConfig(options),
+  );
   return data;
 }
 
-export async function batchDeleteItems(wlId: number, codes: string[]): Promise<void> {
-  if (USE_MOCK) return delay(undefined);
-  await api.post(`/watchlists/${wlId}/items/batch-delete`, { codes });
+export async function batchDeleteItems(
+  wlId: number,
+  codes: string[],
+  options: RequestOptions = {},
+): Promise<void> {
+  if (USE_MOCK) return delay(undefined, 200, options.signal);
+  await apiPost(`/watchlists/${wlId}/items/batch-delete`, { codes }, signalConfig(options));
 }
 
-export async function fetchWatchlistQuotes(wlId: number): Promise<WatchlistQuote> {
-  if (USE_MOCK) return delay(mockGetWatchlistQuotes(wlId), 300);
-  const { data } = await api.get<WatchlistQuote>(`/watchlists/${wlId}/quotes`);
+export async function fetchWatchlistQuotes(wlId: number, options: RequestOptions = {}): Promise<WatchlistQuote> {
+  if (USE_MOCK) return delay(mockGetWatchlistQuotes(wlId), 300, options.signal);
+  const { data } = await apiGet<WatchlistQuote>(`/watchlists/${wlId}/quotes`, signalConfig(options));
   return data;
 }
 
-export async function searchStocks(q: string): Promise<StockSearchResult[]> {
-  if (USE_MOCK) return delay(mockSearchStocks(q), 150);
-  const { data } = await api.get<StockSearchResult[]>('/watchlists/search', { params: { q } });
+export async function searchStocks(q: string, options: RequestOptions = {}): Promise<StockSearchResult[]> {
+  if (USE_MOCK) return delay(mockSearchStocks(q), 150, options.signal);
+  const { data } = await apiGet<StockSearchResult[]>('/watchlists/search', paramsConfig({ q }, options));
   return data;
 }
 
@@ -452,29 +547,36 @@ function strategyResultToBacktestResult(item: StrategyBacktestResult): BacktestR
 }
 
 export async function fetchBacktestResults(
-  strategyId?: number
+  strategyId?: number,
+  options: RequestOptions = {},
 ): Promise<BacktestResult[]> {
   if (USE_MOCK) {
     return delay(
       strategyId
         ? mockBacktestResults.filter((r) => r.strategy_id === strategyId)
-        : mockBacktestResults
+        : mockBacktestResults,
+      200,
+      options.signal,
     );
   }
   if (strategyId !== undefined) {
-    const { data } = await api.get<StrategyBacktestResult[]>(`/strategies/${strategyId}/results`);
+    const { data } = await apiGet<StrategyBacktestResult[]>(
+      `/strategies/${strategyId}/results`,
+      signalConfig(options),
+    );
     return (data ?? []).map(strategyResultToBacktestResult);
   }
-  const { data } = await api.get<BacktestHistoryItem[]>('/backtest/history');
+  const { data } = await apiGet<BacktestHistoryItem[]>('/backtest/history', signalConfig(options));
   return (data ?? []).map(historyItemToResult);
 }
 
 export async function fetchBacktestResult(
-  id: number | string
+  id: number | string,
+  options: RequestOptions = {},
 ): Promise<BacktestResult | undefined> {
   const taskId = String(id);
-  if (USE_MOCK) return delay(mockBacktestResults.find((r) => String(r.id) === taskId));
-  const { data } = await api.get<BackendBacktestResult>(`/backtest/${taskId}`);
+  if (USE_MOCK) return delay(mockBacktestResults.find((r) => String(r.id) === taskId), 200, options.signal);
+  const { data } = await apiGet<BackendBacktestResult>(`/backtest/${taskId}`, signalConfig(options));
   return taskToResult(data);
 }
 
@@ -486,10 +588,10 @@ export async function submitBacktest(body: {
   end_date: string;
   initial_capital: number;
   params: Record<string, string>;
-}): Promise<{ task_id: string }> {
+}, options: RequestOptions = {}): Promise<{ task_id: string }> {
   if (USE_MOCK) {
     const taskId = Math.random().toString(36).slice(2, 10);
-    return delay({ task_id: taskId }, 500);
+    return delay({ task_id: taskId }, 500, options.signal);
   }
   const payload = {
     ...body,
@@ -499,22 +601,25 @@ export async function submitBacktest(body: {
     start_date: body.start_date,
     end_date: body.end_date,
   };
-  const { data } = await api.post<{ task_id: string }>('/backtest/run', payload);
+  const { data } = await apiPost<{ task_id: string }>('/backtest/run', payload, signalConfig(options));
   return data;
 }
 
-export async function getBacktestTask(taskId: string): Promise<BacktestResult | undefined> {
+export async function getBacktestTask(taskId: string, options: RequestOptions = {}): Promise<BacktestResult | undefined> {
   if (USE_MOCK) {
     const idx = parseInt(taskId, 36) % mockBacktestResults.length;
-    return delay(mockBacktestResults[isNaN(idx) ? 0 : idx], 300);
+    return delay(mockBacktestResults[isNaN(idx) ? 0 : idx], 300, options.signal);
   }
-  const { data } = await api.get<BackendBacktestResult>(`/backtest/${taskId}`);
+  const { data } = await apiGet<BackendBacktestResult>(`/backtest/${taskId}`, signalConfig(options));
   return taskToResult(data);
 }
 
-export async function fetchBacktestCompare(strategyIds: number[]): Promise<BacktestResult[]> {
+export async function fetchBacktestCompare(
+  strategyIds: number[],
+  options: RequestOptions = {},
+): Promise<BacktestResult[]> {
   if (USE_MOCK) {
-    return delay(mockBacktestResults.filter((r) => strategyIds.includes(r.strategy_id)));
+    return delay(mockBacktestResults.filter((r) => strategyIds.includes(r.strategy_id)), 200, options.signal);
   }
   // No backend endpoint yet (TICKET-012)
   return [];
@@ -522,25 +627,32 @@ export async function fetchBacktestCompare(strategyIds: number[]): Promise<Backt
 
 // ── Data Management ───────────────────────────────
 
-export async function initializeData(): Promise<{ stock_count: number; message: string }> {
-  const { data } = await api.post<{ stock_count: number; message: string }>('/data/initialize');
+export async function initializeData(options: RequestOptions = {}): Promise<{ stock_count: number; message: string }> {
+  const { data } = await apiPost<{ stock_count: number; message: string }>(
+    '/data/initialize',
+    undefined,
+    signalConfig(options),
+  );
   return data;
 }
 
-export async function fetchDataStats(): Promise<DataStats> {
-  if (USE_MOCK) return delay(mockDataStats, 100);
-  const { data } = await api.get<DataStats>('/data/stats');
+export async function fetchDataStats(options: RequestOptions = {}): Promise<DataStats> {
+  if (USE_MOCK) return delay(mockDataStats, 100, options.signal);
+  const { data } = await apiGet<DataStats>('/data/stats', signalConfig(options));
   return data;
 }
 
-export async function fetchStockDataStatus(code: string): Promise<StockDataStatus | undefined> {
-  if (USE_MOCK) return delay(mockStockDataStatusMap[code], 150);
-  const { data } = await api.get<StockDataStatus>('/data/stock-status', { params: { code } });
+export async function fetchStockDataStatus(
+  code: string,
+  options: RequestOptions = {},
+): Promise<StockDataStatus | undefined> {
+  if (USE_MOCK) return delay(mockStockDataStatusMap[code], 150, options.signal);
+  const { data } = await apiGet<StockDataStatus>('/data/stock-status', paramsConfig({ code }, options));
   return data;
 }
 
-export async function refreshData(body: RefreshRequest): Promise<RefreshResult> {
-  if (USE_MOCK) return delay(mockRefreshData(body.codes, body.force), 2000);
-  const { data } = await api.post<RefreshResult>('/data/refresh', body);
+export async function refreshData(body: RefreshRequest, options: RequestOptions = {}): Promise<RefreshResult> {
+  if (USE_MOCK) return delay(mockRefreshData(body.codes, body.force), 2000, options.signal);
+  const { data } = await apiPost<RefreshResult>('/data/refresh', body, signalConfig(options));
   return data;
 }

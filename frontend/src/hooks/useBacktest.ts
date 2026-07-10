@@ -9,7 +9,7 @@ export function useBacktestSubmit(strategies: Strategy[]) {
 
   const submit = useCallback(async (data: {
     strategy_id: number;
-    stock_codes: string[];
+    stock_code: string;
     start_date: string;
     end_date: string;
     initial_capital: number;
@@ -20,7 +20,7 @@ export function useBacktestSubmit(strategies: Strategy[]) {
       const strategy = strategies.find((s) => s.id === data.strategy_id);
       const result = await submitBacktest({
         strategy_id: data.strategy_id,
-        code: data.stock_codes[0],
+        code: data.stock_code,
         strategy: strategy?.code_ref || strategy?.name || '',
         start_date: data.start_date,
         end_date: data.end_date,
@@ -40,7 +40,7 @@ export function useBacktestSubmit(strategies: Strategy[]) {
 export function useBacktestTask(taskId: string | null) {
   const { data } = useQuery<BacktestResult | undefined>({
     queryKey: ['backtest-task', taskId],
-    queryFn: () => getBacktestTask(taskId!),
+    queryFn: ({ signal }) => getBacktestTask(taskId!, { signal }),
     enabled: !!taskId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 
 from zhanfa.api.models import (
+    STOCK_CODE_PATTERN,
     CacheStats,
     DataStats,
     DBStats,
@@ -83,7 +86,12 @@ def get_stats():
 
 
 @router.post("/initialize", response_model=InitializeResult)
-def initialize():
+async def initialize():
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _initialize_data)
+
+
+def _initialize_data() -> InitializeResult:
     fetcher = Fetcher()
     fetcher.stock_list()
     n = import_stocks()
@@ -91,7 +99,9 @@ def initialize():
 
 
 @router.get("/stock-status", response_model=StockDataStatus)
-def get_stock_status(code: str = Query(...)):
+def get_stock_status(
+    code: Annotated[str, Query(pattern=STOCK_CODE_PATTERN)],
+):
     store = Store()
     result = StockDataStatus(code=code, name=_stock_name(code, store))
 
