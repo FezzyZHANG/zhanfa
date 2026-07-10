@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 import pandas as pd
@@ -58,6 +59,21 @@ class TestConcurrentSubmissions:
 
         for tid in task_ids:
             assert tid in _tasks
+
+    def test_concurrent_submit_idempotent(self):
+        """Parallel submissions should each produce a readable pending task."""
+        requests = [_make_request(code=f"{i:06d}") for i in range(1, 21)]
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            task_ids = list(executor.map(submit_backtest, requests))
+
+        assert len(task_ids) == len(set(task_ids))
+        assert len(_tasks) == len(requests)
+        for task_id, request in zip(task_ids, requests):
+            task = get_task(task_id)
+            assert task is not None
+            assert task["status"] == "pending"
+            assert task["request"]["code"] == request["code"]
 
     @patch("zhanfa.api.services.backtest_service._execute_backtest")
     @patch("zhanfa.api.services.backtest_service.SessionLocal")

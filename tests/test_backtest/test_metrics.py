@@ -7,6 +7,7 @@ from zhanfa.backtest.metrics import compute_metrics
 
 
 def test_compute_metrics_basic():
+    np.random.seed(42)
     dates = pd.date_range("2020-01-01", periods=500, freq="B")
     equity = pd.Series(100000 + np.cumsum(np.random.randn(500) * 100), index=dates)
 
@@ -20,6 +21,7 @@ def test_compute_metrics_basic():
 
 
 def test_compute_metrics_with_benchmark():
+    np.random.seed(42)
     dates = pd.date_range("2020-01-01", periods=500, freq="B")
     equity = pd.Series(100000 + np.cumsum(np.random.randn(500) * 100), index=dates)
     bench = pd.Series(100000 + np.cumsum(np.random.randn(500) * 50), index=dates)

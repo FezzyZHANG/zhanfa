@@ -123,7 +123,7 @@ class TestPipelineIndicators:
     def test_channel_pct_range(self, sample_df):
         df = Pipeline.add_simple_indicators(sample_df)
         valid = df["channel_pct"].dropna()
-        assert (valid >= 0).all() or (valid <= 1.01).all()  # 允许浮点误差
+        assert (valid >= 0).all() and (valid <= 1.01).all()  # 允许浮点误差
 
     def test_atr_positive(self, sample_df):
         df = Pipeline.add_simple_indicators(sample_df)

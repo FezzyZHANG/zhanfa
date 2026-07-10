@@ -125,7 +125,11 @@ class TestSchedulerErrorNotification:
         s = Scheduler(on_error=mock_callback)
 
         s._notify_error("test_job", "Traceback...")
-        mock_callback.assert_called_once_with("test_job", mock_callback.call_args[0][1])
+        mock_callback.assert_called_once()
+        job, error = mock_callback.call_args[0]
+        assert job == "test_job"
+        assert isinstance(error, Exception)
+        assert "Traceback..." in str(error)
 
     def test_on_error_callback_handles_exception(self):
         def bad_callback(job, exc):

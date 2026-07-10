@@ -85,6 +85,7 @@ export interface StockInfo {
   industry?: string | null;
   market_cap?: number | null;
   listed_date?: string | null;
+  latest_financial?: FinancialData | null;
 }
 
 export interface KlineData {

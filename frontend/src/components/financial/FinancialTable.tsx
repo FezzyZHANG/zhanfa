@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { formatNumber, formatPercent } from '@/lib/utils';
+import { exportToCsv, formatNumber, formatPercent } from '@/lib/utils';
 import type { FinancialData } from '@/types';
 
 interface FinancialTableProps {
@@ -51,21 +51,16 @@ export function FinancialTable({ data }: FinancialTableProps) {
   }
 
   function exportCSV() {
-    const headers = COLUMNS.map((c) => c.label).join(',');
-    const rows = sorted.map((row) =>
-      COLUMNS.map((c) => {
+    exportToCsv(
+      'financial_data.csv',
+      COLUMNS.map((c) => c.label),
+      sorted.map((row) =>
+        COLUMNS.map((c) => {
         if (c.field === 'report_date') return row.report_date;
         return row[c.field];
-      }).join(','),
+        }),
+      ),
     );
-    const csv = '﻿' + [headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'financial_data.csv';
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   const sortIndicator = (field: SortField) => {

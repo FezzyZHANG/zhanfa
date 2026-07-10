@@ -54,6 +54,7 @@ class StockInfo(BaseModel):
     industry: str | None = None
     market_cap: float | None = None  # 总市值（亿元）
     listed_date: str | None = None
+    latest_financial: dict[str, Any] | None = None
 
 
 class StockListResponse(BaseModel):

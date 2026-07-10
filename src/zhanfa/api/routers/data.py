@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -109,10 +108,10 @@ def get_stock_status(
     try:
         if store.exists(code, "daily"):
             result.has_daily = True
-            s, e, rows = _parquet_date_info(store._path(code, "daily"))
-            result.daily_start = s
-            result.daily_end = e
-            result.daily_rows = rows
+            info = store.date_range(code, "daily") or {}
+            result.daily_start = info.get("start")
+            result.daily_end = info.get("end")
+            result.daily_rows = info.get("rows", 0)
             result.daily_cached_at = store.mtime(code, "daily")
     except Exception:
         logger.warning(
@@ -121,10 +120,10 @@ def get_stock_status(
     try:
         if store.exists(code, "financial"):
             result.has_financial = True
-            s, e, rows = _parquet_date_info(store._path(code, "financial"))
-            result.financial_start = s
-            result.financial_end = e
-            result.financial_rows = rows
+            info = store.date_range(code, "financial") or {}
+            result.financial_start = info.get("start")
+            result.financial_end = info.get("end")
+            result.financial_rows = info.get("rows", 0)
             result.financial_cached_at = store.mtime(code, "financial")
     except Exception:
         logger.warning(
@@ -139,11 +138,11 @@ def get_stock_status(
     ]:
         try:
             if store.exists(code, freq):
-                dt_start, dt_end, dt_rows = _parquet_date_info(store._path(code, freq))
+                info = store.date_range(code, freq) or {}
                 setattr(getattr(result, attr), "exists", True)
-                setattr(getattr(result, attr), "start", dt_start)
-                setattr(getattr(result, attr), "end", dt_end)
-                setattr(getattr(result, attr), "rows", dt_rows)
+                setattr(getattr(result, attr), "start", info.get("start"))
+                setattr(getattr(result, attr), "end", info.get("end"))
+                setattr(getattr(result, attr), "rows", info.get("rows", 0))
                 setattr(getattr(result, attr), "cached_at", store.mtime(code, freq))
         except Exception:
             logger.warning(
@@ -221,41 +220,3 @@ def refresh(body: RefreshRequest):
         new_discovered=result["new_discovered"],
         errors=errors,
     )
-
-
-# ── Internal helpers ───────────────────────────────
-
-
-def _parquet_date_info(path) -> tuple[date | None, date | None, int]:
-    """Read first/last rows+row count of a parquet file via pyarrow."""
-    import pandas as pd
-    import pyarrow.parquet as pq
-
-    pf = pq.ParquetFile(path)
-    idx_col = _find_index_column(pf) or "date"
-
-    # Read only the index column from first & last row groups
-    first_tbl = pf.read_row_group(0, columns=[idx_col])
-    last_tbl = pf.read_row_group(pf.num_row_groups - 1, columns=[idx_col])
-
-    # Convert the column to pandas Series directly (avoids pandas metadata mangling)
-    first_series = first_tbl.column(idx_col).to_pandas()
-    last_series = last_tbl.column(idx_col).to_pandas()
-
-    values = pd.to_datetime(pd.concat([first_series, last_series]))
-    return values.min().date(), values.max().date(), pf.metadata.num_rows
-
-
-def _find_index_column(pf) -> str | None:
-    """Extract the pandas index column name from parquet schema metadata."""
-    import json
-
-    meta = pf.schema_arrow.metadata
-    if meta is None:
-        return None
-    try:
-        pandas_meta = json.loads(meta.get(b"pandas", b"{}"))
-        idx_cols = pandas_meta.get("index_columns", [])
-        return idx_cols[0] if idx_cols else None
-    except (json.JSONDecodeError, KeyError, IndexError):
-        return None

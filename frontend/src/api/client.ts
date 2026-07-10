@@ -349,6 +349,7 @@ export function getExportCsvUrl(wlId: number): string {
 function mapBacktestStatus(status: string): BacktestResult['status'] {
   if (status === 'completed') return 'done';
   if (status === 'pending' || status === 'running' || status === 'failed') return status;
+  console.warn(`Unknown backtest status: ${status}`);
   return 'pending';
 }
 
@@ -433,8 +434,9 @@ function buildBacktestResult(input: BacktestResultInput): BacktestResult {
   };
 }
 
-// ── Endpoint-specific mappers ────────────────────────
+// ── Backend BacktestResult shapes ────────────────────────
 
+/** GET /api/backtest/history returns compact rows for list views. */
 interface BacktestHistoryItem {
   task_id: string;
   code: string;
@@ -446,21 +448,7 @@ interface BacktestHistoryItem {
   created_at: string;
 }
 
-function historyItemToResult(item: BacktestHistoryItem): BacktestResult {
-  return buildBacktestResult({
-    id: item.task_id,
-    strategy_name: item.strategy,
-    stock_codes: [item.code],
-    metrics: {
-      total_return: item.total_return ?? 0,
-      sharpe: item.sharpe ?? 0,
-      max_drawdown: item.max_drawdown ?? 0,
-    },
-    status: item.status,
-    created_at: item.created_at,
-  });
-}
-
+/** GET /api/backtest/:task_id returns the full async task payload. */
 interface BackendBacktestResult {
   task_id: string;
   status: string;
@@ -485,28 +473,7 @@ interface BackendBacktestResult {
   completed_at: string | null;
 }
 
-function taskToResult(task: BackendBacktestResult): BacktestResult {
-  const req = task.request;
-  return buildBacktestResult({
-    id: task.task_id,
-    strategy_id: req?.strategy_id ?? 0,
-    strategy_name: req?.strategy || '',
-    stock_codes: req ? [req.code] : [],
-    params: req?.params,
-    start_date: req?.start_date,
-    end_date: req?.end_date,
-    metrics: task.metrics,
-    equity_curve: task.equity_curve,
-    drawdown_curve: task.drawdown_curve,
-    benchmark_curve: task.benchmark_curve,
-    yearly_returns: task.yearly_returns,
-    monthly_returns: task.monthly_returns,
-    trades: task.trades,
-    status: task.status,
-    created_at: task.created_at,
-  });
-}
-
+/** GET /api/strategies/:id/results returns persisted result rows for one strategy. */
 interface StrategyBacktestResult {
   id: string;
   db_id: number;
@@ -526,23 +493,73 @@ interface StrategyBacktestResult {
   created_at: string;
 }
 
-function strategyResultToBacktestResult(item: StrategyBacktestResult): BacktestResult {
+type BackendBacktestShape = BacktestHistoryItem | BackendBacktestResult | StrategyBacktestResult;
+
+function isTaskResult(raw: Partial<BackendBacktestShape>): raw is BackendBacktestResult {
+  return 'task_id' in raw && 'request' in raw;
+}
+
+function isHistoryItem(raw: Partial<BackendBacktestShape>): raw is BacktestHistoryItem {
+  return 'task_id' in raw && 'code' in raw && 'strategy' in raw;
+}
+
+function normalizeBacktestResult(raw: unknown): BacktestResult {
+  const item = raw as Partial<BackendBacktestShape>;
+
+  if (isTaskResult(item)) {
+    const req = item.request;
+    return buildBacktestResult({
+      id: item.task_id,
+      strategy_id: req?.strategy_id ?? 0,
+      strategy_name: req?.strategy || '',
+      stock_codes: req ? [req.code] : [],
+      params: req?.params,
+      start_date: req?.start_date,
+      end_date: req?.end_date,
+      metrics: item.metrics,
+      equity_curve: item.equity_curve,
+      drawdown_curve: item.drawdown_curve,
+      benchmark_curve: item.benchmark_curve,
+      yearly_returns: item.yearly_returns,
+      monthly_returns: item.monthly_returns,
+      trades: item.trades,
+      status: item.status,
+      created_at: item.created_at,
+    });
+  }
+
+  if (isHistoryItem(item)) {
+    return buildBacktestResult({
+      id: item.task_id,
+      strategy_name: item.strategy,
+      stock_codes: [item.code],
+      metrics: {
+        total_return: item.total_return ?? 0,
+        sharpe: item.sharpe ?? 0,
+        max_drawdown: item.max_drawdown ?? 0,
+      },
+      status: item.status,
+      created_at: item.created_at,
+    });
+  }
+
+  const strategyResult = item as StrategyBacktestResult;
   return buildBacktestResult({
-    id: item.id,
-    strategy_id: item.strategy_id,
-    stock_codes: item.stock_codes,
-    params: item.params,
-    start_date: item.start_date,
-    end_date: item.end_date,
-    metrics: item.metrics,
-    equity_curve: item.equity_curve,
-    drawdown_curve: item.drawdown_curve,
-    benchmark_curve: item.benchmark_curve,
-    yearly_returns: item.yearly_returns,
-    monthly_returns: item.monthly_returns,
-    trades: item.trades,
-    status: item.status,
-    created_at: item.created_at,
+    id: strategyResult.id,
+    strategy_id: strategyResult.strategy_id,
+    stock_codes: strategyResult.stock_codes,
+    params: strategyResult.params,
+    start_date: strategyResult.start_date,
+    end_date: strategyResult.end_date,
+    metrics: strategyResult.metrics,
+    equity_curve: strategyResult.equity_curve,
+    drawdown_curve: strategyResult.drawdown_curve,
+    benchmark_curve: strategyResult.benchmark_curve,
+    yearly_returns: strategyResult.yearly_returns,
+    monthly_returns: strategyResult.monthly_returns,
+    trades: strategyResult.trades,
+    status: strategyResult.status,
+    created_at: strategyResult.created_at,
   });
 }
 
@@ -564,10 +581,10 @@ export async function fetchBacktestResults(
       `/strategies/${strategyId}/results`,
       signalConfig(options),
     );
-    return (data ?? []).map(strategyResultToBacktestResult);
+    return (data ?? []).map(normalizeBacktestResult);
   }
   const { data } = await apiGet<BacktestHistoryItem[]>('/backtest/history', signalConfig(options));
-  return (data ?? []).map(historyItemToResult);
+  return (data ?? []).map(normalizeBacktestResult);
 }
 
 export async function fetchBacktestResult(
@@ -577,7 +594,7 @@ export async function fetchBacktestResult(
   const taskId = String(id);
   if (USE_MOCK) return delay(mockBacktestResults.find((r) => String(r.id) === taskId), 200, options.signal);
   const { data } = await apiGet<BackendBacktestResult>(`/backtest/${taskId}`, signalConfig(options));
-  return taskToResult(data);
+  return normalizeBacktestResult(data);
 }
 
 export async function submitBacktest(body: {
@@ -611,7 +628,7 @@ export async function getBacktestTask(taskId: string, options: RequestOptions = 
     return delay(mockBacktestResults[isNaN(idx) ? 0 : idx], 300, options.signal);
   }
   const { data } = await apiGet<BackendBacktestResult>(`/backtest/${taskId}`, signalConfig(options));
-  return taskToResult(data);
+  return normalizeBacktestResult(data);
 }
 
 export async function fetchBacktestCompare(

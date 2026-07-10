@@ -12,6 +12,11 @@ from zhanfa.backtest.engine import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _seed_numpy_random():
+    np.random.seed(42)
+
+
 class TestRunBacktest:
     def test_basic(self):
         dates = pd.date_range("2024-01-01", periods=200, freq="B")

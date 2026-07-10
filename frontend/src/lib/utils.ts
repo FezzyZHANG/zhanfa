@@ -24,6 +24,23 @@ export function formatDate(date: string): string {
   return new Date(date).toLocaleDateString('zh-CN');
 }
 
+export function exportToCsv(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+  const escapeCell = (value: string | number | null | undefined) => {
+    const text = value == null ? '' : String(value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escapeCell).join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   trend: '趋势跟踪',
   momentum: '动量',

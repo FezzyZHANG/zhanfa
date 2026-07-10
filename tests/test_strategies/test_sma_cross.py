@@ -45,5 +45,4 @@ def test_sma_cross_basic_rules(sample_data):
     """快线在上买入、下穿卖出——靠近尾巴应该已经产生信号"""
     s = SMACross(fast=5, slow=50)
     signals = s.generate_signals(sample_data)
-    # 最后50根 K 线内应有信号变化（慢线已出信号区）
-    assert signals.iloc[-50:].nunique() >= 1
+    assert signals.iloc[-50:].nunique() == 2

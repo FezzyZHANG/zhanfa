@@ -12,7 +12,7 @@ from zhanfa.api.services.backtest_service import (
     submit_backtest,
     get_task,
     get_history,
-    compare_backtests,
+    filter_backtests,
 )
 from zhanfa.db.models import BacktestResult
 
@@ -165,18 +165,18 @@ class TestGetHistory:
         assert "survivor" in db_task_ids
 
 
-class TestCompareBacktests:
+class TestFilterBacktests:
     def test_filters_by_task_id(self, patched_db):
         tid1 = submit_backtest({"code": "000001", "strategy": "sma_cross"})
         submit_backtest({"code": "600519", "strategy": "turtle"})
-        result = compare_backtests([tid1])
+        result = filter_backtests([tid1])
         assert len(result) == 1
         assert result[0]["task_id"] == tid1
 
     def test_empty_ids_returns_all(self, patched_db):
         submit_backtest({"code": "000001", "strategy": "sma_cross"})
         submit_backtest({"code": "600519", "strategy": "turtle"})
-        result = compare_backtests([])
+        result = filter_backtests([])
         assert len(result) == 2
 
 

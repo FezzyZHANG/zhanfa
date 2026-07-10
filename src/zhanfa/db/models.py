@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -59,7 +60,10 @@ class StockFinancial(Base):
     """财报数据缓存"""
 
     __tablename__ = "stock_financial"
-    __table_args__ = (UniqueConstraint("code", "report_date"),)
+    __table_args__ = (
+        UniqueConstraint("code", "report_date"),
+        Index("ix_stock_financial_code", "code"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(10), ForeignKey("stocks.code"), nullable=False)
@@ -113,8 +117,8 @@ class BacktestResult(Base):
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    task_id = Column(String(32))  # API-level UUID for lookups across restarts
-    strategy_id = Column(Integer, ForeignKey("strategies.id"))
+    task_id = Column(String(32), index=True)  # API-level UUID for lookups across restarts
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), index=True)
     stock_codes = Column(JSON, nullable=False)  # ["000001","600519"]
     params = Column(JSON, nullable=False)  # 回测参数快照
     start_date = Column(Date, nullable=False)
@@ -128,6 +132,6 @@ class BacktestResult(Base):
     trades = Column(JSON)                   # [{date, action, price, quantity, pnl}]
     report_md = Column(Text)  # Markdown 报告
     status = Column(String(20), default="pending")
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now, index=True)
 
     strategy = relationship("Strategy", back_populates="backtests")

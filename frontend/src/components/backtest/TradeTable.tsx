@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import type { Trade } from '@/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { formatNumber } from '@/lib/utils';
+import { exportToCsv, formatNumber } from '@/lib/utils';
 
 interface TradeTableProps {
   trades: Trade[];
@@ -26,18 +26,11 @@ export function TradeTable({ trades, pageSize = 15 }: TradeTableProps) {
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   const exportCSV = () => {
-    const header = '日期,方向,价格,数量,盈亏';
-    const rows = filtered.map((t) =>
-      [t.date, t.action === 'buy' ? '买入' : '卖出', t.price, t.quantity, t.pnl ?? ''].join(',')
+    exportToCsv(
+      'trades.csv',
+      ['日期', '方向', '价格', '数量', '盈亏'],
+      filtered.map((t) => [t.date, t.action === 'buy' ? '买入' : '卖出', t.price, t.quantity, t.pnl]),
     );
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'trades.csv';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const totalPnl = filtered.reduce((sum, t) => sum + (t.pnl ?? 0), 0);

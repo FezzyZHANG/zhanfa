@@ -12,7 +12,7 @@ import {
 } from '@/lib/indicators';
 import type { SMAResult, MAResult, MACDResult, RSIResult, BollResult, DonchianResult } from '@/lib/indicators';
 
-function aggregateData(data: KlineData[], freq: Freq): KlineData[] {
+export function aggregateData(data: KlineData[], freq: Freq): KlineData[] {
   // 分钟级数据直接从服务端获取，无需客户端聚合
   if (freq === 'D' || isMinuteFreq(freq) || data.length === 0) return data;
 

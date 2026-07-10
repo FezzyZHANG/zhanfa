@@ -102,8 +102,8 @@ def create_strategy_instance(
 ) -> BaseStrategy:
     """Instantiate a strategy class by name or DB code_ref.
 
-    Tries DB lookup first (by name or code_ref suffix), falls back to
-    direct import via the old hardcoded registry.
+    Tries DB lookup first (by name or code_ref suffix), registers discovered
+    strategies if the DB is empty, then falls back to dynamic discovery.
     """
     code_ref = _resolve_code_ref(strategy_key)
 
@@ -118,6 +118,33 @@ def create_strategy_instance(
 
 def _resolve_code_ref(key: str) -> str | None:
     """Resolve a strategy key to a code_ref (module.ClassName)."""
+    try:
+        code_ref = _lookup_code_ref(key)
+    except Exception:
+        code_ref = None
+    if code_ref:
+        return code_ref
+
+    try:
+        from zhanfa.db.register_strategies import register_strategies
+
+        register_strategies()
+    except Exception:
+        pass
+    else:
+        try:
+            code_ref = _lookup_code_ref(key)
+        except Exception:
+            code_ref = None
+        if code_ref:
+            return code_ref
+
+    from zhanfa.strategies.registry import discover_code_refs
+
+    return _match_code_ref(key, discover_code_refs())
+
+
+def _lookup_code_ref(key: str) -> str | None:
     session = SessionLocal()
     try:
         # Try exact match on name or code_ref
@@ -141,10 +168,11 @@ def _resolve_code_ref(key: str) -> str | None:
     finally:
         session.close()
 
-    # Fallback for when DB isn't populated — use auto-discovered registry
-    from zhanfa.strategies.registry import BUILTIN_CODE_REFS
+    return None
 
-    for code_ref in BUILTIN_CODE_REFS:
+
+def _match_code_ref(key: str, code_refs: list[str]) -> str | None:
+    for code_ref in code_refs:
         if code_ref == key:
             return code_ref
         # Module path suffix match: e.g. key "sma_cross" matches "...sma_cross.SMACross"

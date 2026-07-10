@@ -20,9 +20,9 @@ def get_backtest_history():
 
 
 @router.get("/compare", response_model=list[BacktestHistoryItem])
-def compare_backtests(ids: str = Query("")):
+def filter_backtests(ids: str = Query("")):
     id_list = [s.strip() for s in ids.split(",") if s.strip()]
-    return backtest_service.compare_backtests(id_list)
+    return backtest_service.filter_backtests(id_list)
 
 
 @router.get("/{task_id}", response_model=BacktestResult)

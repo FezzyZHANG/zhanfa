@@ -291,7 +291,7 @@ def _get_db_history() -> list[dict]:
         session.close()
 
 
-def compare_backtests(ids: list[str]) -> list[dict]:
+def filter_backtests(ids: list[str]) -> list[dict]:
     all_tasks = get_history()
     if not ids:
         return all_tasks
@@ -336,8 +336,8 @@ def _db_row_to_history_item(
 
 
 def _db_record_to_task_dict(row: BacktestResult) -> dict:
-    date_str = str(row.start_date).replace("-", "")
-    end_str = str(row.end_date).replace("-", "")
+    date_str = row.start_date.isoformat() if row.start_date else ""
+    end_str = row.end_date.isoformat() if row.end_date else ""
     ct = row.created_at or datetime.now(timezone.utc)
     if ct.tzinfo is None:
         ct = ct.replace(tzinfo=timezone.utc)
