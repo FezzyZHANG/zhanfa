@@ -2,6 +2,8 @@
 
 from unittest.mock import patch
 
+import pandas as pd
+
 # ── Health ────────────────────────────────────────────
 
 def test_health(client):
@@ -98,18 +100,46 @@ def test_update_strategy_not_found(client):
 
 # ── Stocks ────────────────────────────────────────────
 
+def _stock_list_frame():
+    return pd.DataFrame(
+        {
+            "code": ["000001", "000002", "000003", "000004", "000005", "000006"],
+            "name": ["Stock 1", "Stock 2", "Stock 3", "Stock 4", "Stock 5", "Stock 6"],
+        }
+    )
+
+
 def test_list_stocks(client):
-    r = client.get("/api/stocks?page=1&page_size=5")
+    with patch("zhanfa.api.services.stock_service.Fetcher") as MockFetcher:
+        MockFetcher.return_value.stock_list.return_value = _stock_list_frame()
+        r = client.get("/api/stocks?page=1&page_size=5")
+
     assert r.status_code == 200
     data = r.json()
     assert data["page"] == 1
     assert data["page_size"] == 5
-    assert "items" in data
-    assert "total" in data
+    assert data["total"] == 6
+    assert [item["code"] for item in data["items"]] == [
+        "000001",
+        "000002",
+        "000003",
+        "000004",
+        "000005",
+    ]
+    assert [item["name"] for item in data["items"]] == [
+        "Stock 1",
+        "Stock 2",
+        "Stock 3",
+        "Stock 4",
+        "Stock 5",
+    ]
 
 
 def test_get_stock_not_found(client):
-    r = client.get("/api/stocks/999999")
+    with patch("zhanfa.api.services.stock_service.Fetcher") as MockFetcher:
+        MockFetcher.return_value.stock_list.return_value = _stock_list_frame()
+        r = client.get("/api/stocks/999999")
+
     assert r.status_code == 404
 
 
