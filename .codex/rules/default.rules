@@ -1,0 +1,18 @@
+# Vitest 和 Vite 需要启动项目内的 esbuild 子进程。Windows 沙箱会以
+# spawn EPERM 拦截它，因此仅允许已验证的前端测试和构建命令在沙箱外运行。
+
+prefix_rule(
+    pattern = ["npm", "run", "test"],
+    decision = "allow",
+    justification = "Run the repository's Vitest suite, which starts esbuild on Windows",
+    match = ["npm run test"],
+    not_match = ["npm test", "npm run build"],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "build"],
+    decision = "allow",
+    justification = "Build the repository frontend with TypeScript, Vite, and esbuild",
+    match = ["npm run build"],
+    not_match = ["npm build", "npm run test"],
+)

@@ -1,0 +1,14 @@
+# zhanfa 项目级 Codex 默认权限。
+# 仅在用户信任此项目后加载；个人模型、认证和通知配置仍放在 ~/.codex/config.toml。
+
+# 日常读写源码、测试、文档、缓存和构建产物时无需逐次确认；
+# 仓库外写入或沙箱无法覆盖的操作仍向用户申请授权。
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# uv sync、npm ci、依赖审计及显式的数据源联调需要网络。
+network_access = true
+
+# uv 的默认缓存位于用户目录；仅额外授权这一处，避免每次后端检查都申请提升。
+writable_roots = ["C:\\Users\\19260\\AppData\\Local\\uv\\cache"]
