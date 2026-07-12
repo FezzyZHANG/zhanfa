@@ -1,5 +1,6 @@
 """Fetcher 单元测试（mock akshare 调用）"""
 
+import os
 from unittest.mock import patch, MagicMock
 
 import numpy as np
@@ -64,6 +65,42 @@ class TestFetcherDaily:
         args = mock_store.save.call_args
         assert args[0][0] == "000001"
         assert args[0][2] == "daily"
+
+    @patch("akshare.stock_zh_a_hist")
+    def test_akshare_calls_ignore_proxy_env_by_default(
+        self, mock_api, mock_store, mock_ak_daily, monkeypatch
+    ):
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7890")
+        monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
+
+        def fake_api(**_kwargs):
+            assert "HTTP_PROXY" not in os.environ
+            assert "HTTPS_PROXY" not in os.environ
+            return mock_ak_daily
+
+        mock_api.side_effect = fake_api
+
+        f = Fetcher(store=mock_store)
+        f.daily("000001")
+
+        assert os.environ["HTTP_PROXY"] == "http://127.0.0.1:7890"
+        assert os.environ["HTTPS_PROXY"] == "http://127.0.0.1:7890"
+
+    @patch("akshare.stock_zh_a_hist")
+    def test_akshare_calls_can_opt_in_to_proxy_env(
+        self, mock_api, mock_store, mock_ak_daily, monkeypatch
+    ):
+        monkeypatch.setenv("ZHANFA_AKSHARE_USE_PROXY", "true")
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7890")
+
+        def fake_api(**_kwargs):
+            assert os.environ["HTTP_PROXY"] == "http://127.0.0.1:7890"
+            return mock_ak_daily
+
+        mock_api.side_effect = fake_api
+
+        f = Fetcher(store=mock_store)
+        f.daily("000001")
 
 
 class TestFetcherDailyBatch:

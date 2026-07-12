@@ -186,3 +186,22 @@ Get-ChildItem -Recurse -Include *.py -Path src | Select-String -Pattern '= \{\}|
 
 - 报告称 `_register_scheduler_tasks()` 顶层启动后台线程；当前代码中线程启动发生在 `lifespan()` 调用链内，真正仍需处理的是调度时间配置化，见 `TICKET-052`。
 - 报告建议 CI npm cache；当前 `.github/workflows/ci.yml` 已使用 `actions/setup-node@v4` 的 `cache: npm` 和 `cache-dependency-path: frontend/package-lock.json`，暂不拆工单。
+
+## 2026-07-12 akshare 误继承系统代理导致东方财富抓取失败
+
+**症状**: 日线更新中单只股票失败，日志包含 `push2his.eastmoney.com`、`ProxyError('Unable to connect to proxy')`、`Remote end closed connection without response`。
+
+**定位**: 当前 Python 进程能看到 `HTTP_PROXY` / `HTTPS_PROXY=http://127.0.0.1:7890`，akshare 底层 HTTP 请求继承这些环境变量后，东方财富请求被转发到本机代理。代理端断开时，`update_daily_data()` 只会把该股票记为失败并继续批次。
+
+**修复 (TICKET-064)**:
+- `Fetcher` 的 akshare 网络调用统一走内部入口。
+- 默认临时屏蔽 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY` 及小写形式。
+- 需要代理时显式设置 `ZHANFA_AKSHARE_USE_PROXY=true`。
+
+**复查命令**:
+
+```bash
+uv run pytest tests/test_data/test_fetcher.py -q
+uv run ruff check src/zhanfa/data/fetcher.py tests/test_data/test_fetcher.py
+uv run mypy src/
+```

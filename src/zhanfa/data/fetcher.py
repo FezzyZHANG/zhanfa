@@ -1,11 +1,32 @@
 """akshare 数据获取封装"""
 
+from contextlib import contextmanager
 import os
 from datetime import timedelta
+from threading import RLock
 
 import pandas as pd
 
 from .store import Store
+
+_PROXY_ENV_VARS = (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
+)
+_PROXY_ENV_LOCK = RLock()
+
+
+def _env_flag(key: str, default: bool = False) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _env_ttl(key: str, default_hours: float | None) -> timedelta | None:
@@ -22,6 +43,32 @@ def _env_ttl(key: str, default_hours: float | None) -> timedelta | None:
     if default_hours is not None:
         return timedelta(hours=default_hours)
     return None
+
+
+@contextmanager
+def _akshare_proxy_env():
+    """Run akshare calls without inherited proxy env by default."""
+    if _env_flag("ZHANFA_AKSHARE_USE_PROXY", False):
+        yield
+        return
+
+    with _PROXY_ENV_LOCK:
+        saved = {key: os.environ[key] for key in _PROXY_ENV_VARS if key in os.environ}
+        for key in _PROXY_ENV_VARS:
+            os.environ.pop(key, None)
+        try:
+            yield
+        finally:
+            for key in _PROXY_ENV_VARS:
+                os.environ.pop(key, None)
+            os.environ.update(saved)
+
+
+def _call_akshare(func_name: str, *args, **kwargs):
+    with _akshare_proxy_env():
+        import akshare as ak
+
+        return getattr(ak, func_name)(*args, **kwargs)
 
 
 class Fetcher:
@@ -63,9 +110,8 @@ class Fetcher:
         if cached is not None:
             self.store.delete(code, "daily")  # 坏缓存删除后重新拉取
 
-        import akshare as ak
-
-        df = ak.stock_zh_a_hist(
+        df = _call_akshare(
+            "stock_zh_a_hist",
             symbol=code, period="daily", start_date=start, end_date=end, adjust=adjust
         )
         df = self._clean_ohlcv(df)
@@ -95,10 +141,9 @@ class Fetcher:
         if cached is not None:
             return cached
 
-        import akshare as ak
-
-        raw = ak.stock_zh_index_daily(
-            symbol=f"sh{code}" if code.startswith("000") else f"sz{code}"
+        raw = _call_akshare(
+            "stock_zh_index_daily",
+            symbol=f"sh{code}" if code.startswith("000") else f"sz{code}",
         )
 
         # akshare 不同版本返回中/英列名，统一映射为英文
@@ -137,9 +182,7 @@ class Fetcher:
         if cached is not None:
             return cached["code"].tolist()
 
-        import akshare as ak
-
-        df = ak.index_stock_cons_csindex(symbol=index_code)
+        df = _call_akshare("index_stock_cons_csindex", symbol=index_code)
         codes = df["成分券代码"].tolist()
         self.store.save(cache_key, pd.DataFrame({"code": codes}), "meta")
         return codes
@@ -152,9 +195,7 @@ class Fetcher:
         if cached is not None:
             self.store.delete("stock_list", "meta")  # 截断坏缓存删除后重新拉取
 
-        import akshare as ak
-
-        df = ak.stock_info_a_code_name()
+        df = _call_akshare("stock_info_a_code_name")
         df.columns = ["code", "name"]
         df["code"] = df["code"].astype(str).str.strip().str.zfill(6)
         self.store.save("stock_list", df, "meta")
@@ -168,9 +209,9 @@ class Fetcher:
         if cached is not None:
             return cached
 
-        import akshare as ak
-
-        raw = ak.stock_financial_abstract_ths(symbol=code, indicator="按报告期")
+        raw = _call_akshare(
+            "stock_financial_abstract_ths", symbol=code, indicator="按报告期"
+        )
         df = self._clean_financial(raw)
         self.store.save(code, df, "financial")
         return df
@@ -188,10 +229,10 @@ class Fetcher:
         if cached is not None:
             return cached
 
-        import akshare as ak
-
         sina_code = self._to_sina_code(code)
-        df = ak.stock_zh_a_minute(symbol=sina_code, period=period, adjust=adjust)
+        df = _call_akshare(
+            "stock_zh_a_minute", symbol=sina_code, period=period, adjust=adjust
+        )
         df = self._clean_minute(df)
         self.store.save(code, df, freq)
         return df
@@ -209,15 +250,13 @@ class Fetcher:
 
     def industry_stocks(self, industry_name: str) -> pd.DataFrame:
         """获取指定行业板块的成分股列表"""
-        import akshare as ak
-
         cache_key = f"industry_{industry_name}"
         cached = self.store.load(cache_key, "meta", max_age=self.ttl_industry_stocks)
         if cached is not None:
             return cached
 
         try:
-            df = ak.stock_board_industry_cons_em(symbol=industry_name)
+            df = _call_akshare("stock_board_industry_cons_em", symbol=industry_name)
             df = df.rename(columns={"代码": "code", "名称": "name"})
             if "code" in df.columns:
                 df["code"] = df["code"].astype(str)

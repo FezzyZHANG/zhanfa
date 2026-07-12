@@ -12,6 +12,13 @@ akshare API → Fetcher (标准化) → Store (parquet 缓存)
 
 封装 akshare，所有方法自动缓存。首次走网络，之后走本地 parquet。
 
+### 网络代理默认行为
+
+`Fetcher` 调用 akshare 时默认不继承当前进程的系统代理环境变量，避免
+`HTTP_PROXY` / `HTTPS_PROXY` 等宿主配置把东方财富、Sina 等数据源请求转发到
+本地代理后产生 `ProxyError`。如确需通过代理访问数据源，可设置
+`ZHANFA_AKSHARE_USE_PROXY=true` 显式开启代理继承。
+
 | 方法 | 返回 | 缓存位置 | 说明 |
 |---|---|---|---|
 | `daily(code)` | DataFrame | `data/daily/{code}.parquet` | 个股日线（前复权，OHLCV） |
