@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -41,7 +42,41 @@ class Store:
     def save(self, code: str, df: pd.DataFrame, freq: str = "daily") -> None:
         path = self._path(code, freq)
         path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(path, index=True)
+        temp_path = path.with_suffix(f"{path.suffix}.tmp")
+        try:
+            df.to_parquet(temp_path, index=True)
+            os.replace(temp_path, path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def _metadata_path(self, code: str, freq: str = "daily") -> Path:
+        return self._path(code, freq).with_suffix(".meta.json")
+
+    def save_metadata(
+        self, code: str, freq: str, metadata: dict[str, object]
+    ) -> None:
+        """原子写入缓存来源、复权方式和请求统计等旁路元数据。"""
+        path = self._metadata_path(code, freq)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = path.with_suffix(f"{path.suffix}.tmp")
+        try:
+            temp_path.write_text(
+                json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+                encoding="utf-8",
+            )
+            os.replace(temp_path, path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def load_metadata(self, code: str, freq: str = "daily") -> dict[str, object] | None:
+        path = self._metadata_path(code, freq)
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
 
     def load(self, code: str, freq: str = "daily", max_age: timedelta | None = None) -> pd.DataFrame | None:
         path = self._path(code, freq)
@@ -78,6 +113,9 @@ class Store:
         path = self._path(code, freq)
         if path.exists():
             path.unlink()
+        metadata_path = self._metadata_path(code, freq)
+        if metadata_path.exists():
+            metadata_path.unlink()
 
     def last_row(self, code: str, freq: str = "daily") -> dict | None:
         """Read only the last row of a parquet file via pyarrow (avoids full DataFrame load)."""

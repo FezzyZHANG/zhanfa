@@ -86,6 +86,21 @@ class TestStore:
         loaded = store.load("000001")
         _assert_frame_equal(modified, loaded)
 
+    def test_metadata_round_trip_and_delete(self, store, sample_df):
+        store.save("000001", sample_df)
+        metadata = {
+            "provider": "tencent",
+            "adjust": "qfq",
+            "request_count": 2,
+        }
+        store.save_metadata("000001", "daily", metadata)
+        assert store.load_metadata("000001", "daily") == metadata
+
+        store.delete("000001", "daily")
+
+        assert store.load_metadata("000001", "daily") is None
+        assert not store.exists("000001", "daily")
+
     def test_file_path(self, store):
         expected = store.base / "daily" / "000001.parquet"
         assert store._path("000001") == expected

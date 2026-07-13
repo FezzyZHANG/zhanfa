@@ -11,6 +11,7 @@ from zhanfa.api.models import (
     StockListResponse,
 )
 from zhanfa.api.services import stock_service
+from zhanfa.data.daily_providers import DEFAULT_DAILY_END, DEFAULT_DAILY_START
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
@@ -38,8 +39,8 @@ def get_stock(code: StockCodePath):
 @router.get("/{code}/daily", response_model=DailyResponse)
 def get_daily(
     code: StockCodePath,
-    start: str = Query("20100101"),
-    end: str = Query("21000101"),
+    start: str = Query(DEFAULT_DAILY_START),
+    end: str = Query(DEFAULT_DAILY_END),
     freq: str = Query("daily"),
 ):
     return stock_service.get_daily(code, start=start, end=end, freq=freq)
@@ -53,7 +54,7 @@ def get_financial(code: StockCodePath, years: int = Query(3, ge=1, le=20)):
 @router.get("/{code}/indicators", response_model=IndicatorResponse)
 def get_indicators(
     code: StockCodePath,
-    start: str = Query("20100101"),
-    end: str = Query("21000101"),
+    start: str = Query(DEFAULT_DAILY_START),
+    end: str = Query(DEFAULT_DAILY_END),
 ):
     return stock_service.get_indicators(code, start=start, end=end)

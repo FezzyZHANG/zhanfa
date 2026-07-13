@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from zhanfa.data.daily_providers import DailyProviderError, ProviderResult
 from zhanfa.data.fetcher import Fetcher
 from zhanfa.data.store import Store
 
@@ -15,6 +16,7 @@ from zhanfa.data.store import Store
 def mock_store():
     store = MagicMock(spec=Store)
     store.load.return_value = None
+    store.load_metadata.return_value = {"coverage_start": "20180101"}
     store.codes.return_value = []
     return store
 
@@ -56,7 +58,7 @@ class TestFetcherDaily:
     @patch("akshare.stock_zh_a_hist")
     def test_fetches_and_caches_on_miss(self, mock_api, mock_store, mock_ak_daily):
         mock_api.return_value = mock_ak_daily
-        f = Fetcher(store=mock_store)
+        f = Fetcher(store=mock_store, daily_provider="akshare")
         result = f.daily("000001")
 
         assert isinstance(result, pd.DataFrame)
@@ -65,6 +67,32 @@ class TestFetcherDaily:
         args = mock_store.save.call_args
         assert args[0][0] == "000001"
         assert args[0][2] == "daily"
+
+    def test_falls_back_to_secondary_provider(self, mock_store):
+        primary = MagicMock()
+        primary.name = "tencent"
+        primary.fetch.side_effect = DailyProviderError("remote closed")
+        fallback = MagicMock()
+        fallback.name = "akshare"
+        frame = pd.DataFrame(
+            {
+                "open": [10.0], "high": [11.0], "low": [9.0], "close": [10.5],
+                "volume": [1000.0], "amount": [100.0], "turnover": [1.0],
+            },
+            index=pd.to_datetime(["2024-01-02"]),
+        )
+        fallback.fetch.return_value = ProviderResult(frame, "akshare", 1, 0, 0.1)
+
+        f = Fetcher(store=mock_store, daily_provider=primary)
+        f.daily_fallback = fallback
+        result = f.daily("000001")
+
+        assert isinstance(result, pd.DataFrame)
+        fallback.fetch.assert_called_once_with(
+            "000001", "20180101", "21000101", "qfq", is_index=False
+        )
+        assert f.daily_status("000001").fallback is True
+        mock_store.save.assert_called_once()
 
     @patch("akshare.stock_zh_a_hist")
     def test_akshare_calls_ignore_proxy_env_by_default(
@@ -80,7 +108,7 @@ class TestFetcherDaily:
 
         mock_api.side_effect = fake_api
 
-        f = Fetcher(store=mock_store)
+        f = Fetcher(store=mock_store, daily_provider="akshare")
         f.daily("000001")
 
         assert os.environ["HTTP_PROXY"] == "http://127.0.0.1:7890"
@@ -99,7 +127,7 @@ class TestFetcherDaily:
 
         mock_api.side_effect = fake_api
 
-        f = Fetcher(store=mock_store)
+        f = Fetcher(store=mock_store, daily_provider="akshare")
         f.daily("000001")
 
 
@@ -107,7 +135,7 @@ class TestFetcherDailyBatch:
     @patch("akshare.stock_zh_a_hist")
     def test_returns_dict_of_dataframes(self, mock_api, mock_store, mock_ak_daily):
         mock_api.return_value = mock_ak_daily
-        f = Fetcher(store=mock_store)
+        f = Fetcher(store=mock_store, daily_provider="akshare")
         result = f.daily_batch(["000001", "000002"])
         assert isinstance(result, dict)
         assert set(result.keys()) == {"000001", "000002"}

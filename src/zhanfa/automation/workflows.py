@@ -1,6 +1,7 @@
 """自动化工作流编排"""
 
 import logging
+from datetime import datetime
 
 import pandas as pd
 
@@ -26,6 +27,7 @@ def update_daily_data(
     Returns:
         {"updated": int, "failed": int, "new_discovered": int, "details": {...}}
     """
+    codes_were_explicit = codes is not None
     fetcher = Fetcher()
     store = Store()
 
@@ -51,21 +53,44 @@ def update_daily_data(
         except Exception as e:
             logger.warning(f"新股票发现失败: {e}")
 
-    all_codes = list(dict.fromkeys([normalize_stock_code(c) for c in codes] + new_codes))  # 去重保序
-
-    updated = 0
-    failed = 0
-    details: dict[str, int] = {}
-
-    for code in all_codes:
-        try:
-            df = fetcher.daily(code)
-            details[code] = len(df)
-            updated += 1
-        except Exception as e:
-            logger.error(f"更新 {code} 失败: {e}")
-            details[code] = -1
-            failed += 1
+    all_codes = list(
+        dict.fromkeys([normalize_stock_code(c) for c in codes] + new_codes)
+    )  # 去重保序
+    if not codes_were_explicit:
+        all_codes.sort(
+            key=lambda code: (
+                cached_at.timestamp()
+                if isinstance((cached_at := store.mtime(code, "daily")), datetime)
+                else 0.0
+            )
+        )
+    configured_limit = getattr(fetcher, "daily_batch_max_codes", None)
+    if isinstance(configured_limit, int):
+        deferred_count = max(0, len(all_codes) - configured_limit)
+        batch_codes = all_codes[:configured_limit]
+        frames = fetcher.daily_batch(batch_codes)
+        batch_errors = fetcher.last_batch_errors
+        provider_status = {
+            code: status.provider
+            for code in batch_codes
+            if (status := fetcher.daily_status(code)) is not None
+        }
+    else:
+        # 兼容注入的旧式/最小 Fetcher 测试替身。
+        deferred_count = 0
+        batch_codes = all_codes
+        frames = {}
+        batch_errors = {}
+        provider_status = {}
+        for code in batch_codes:
+            try:
+                frames[code] = fetcher.daily(code)
+            except Exception as exc:
+                batch_errors[code] = str(exc)
+    details: dict[str, int] = {code: len(df) for code, df in frames.items()}
+    details.update({code: -1 for code in batch_errors})
+    updated = len(frames)
+    failed = len(batch_errors)
 
     return {
         "updated": updated,
@@ -73,6 +98,9 @@ def update_daily_data(
         "new_discovered": len(new_codes),
         "stock_imported": stock_imported,
         "details": details,
+        "providers": provider_status,
+        "errors": batch_errors,
+        "deferred": deferred_count,
     }
 
 

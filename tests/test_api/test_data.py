@@ -336,6 +336,32 @@ def test_stock_status_includes_cached_at(client):
             assert data["daily_cached_at"] is not None
 
 
+def test_stock_status_includes_daily_provider_metadata(client, tmp_path):
+    from zhanfa.data.store import Store
+
+    real = Store(str(tmp_path))
+    dates = pd.date_range("2024-01-01", periods=2, freq="B")
+    real.save("000001", pd.DataFrame({"close": [1.0, 2.0]}, index=dates), "daily")
+    real.save_metadata(
+        "000001",
+        "daily",
+        {
+            "provider": "tencent",
+            "adjust": "qfq",
+            "request_count": 2,
+            "retry_count": 1,
+        },
+    )
+
+    with patch("zhanfa.api.routers.data.Store", return_value=real):
+        data = client.get("/api/data/stock-status?code=000001").json()
+
+    assert data["daily_provider"] == "tencent"
+    assert data["daily_adjust"] == "qfq"
+    assert data["daily_request_count"] == 2
+    assert data["daily_retry_count"] == 1
+
+
 # ── Scheduler status ─────────────────────────────────────
 
 

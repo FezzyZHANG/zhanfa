@@ -1,32 +1,31 @@
-"""akshare 数据获取封装"""
+"""多 Provider 数据获取与本地缓存编排。"""
 
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+import logging
 import os
-from datetime import timedelta
-from threading import RLock
+from threading import Lock
 
 import pandas as pd
 
+from .daily_providers import (
+    DEFAULT_DAILY_END,
+    DEFAULT_DAILY_START,
+    DailyProvider,
+    DailyProviderError,
+    DailyProviderUnavailable,
+    ProviderResult,
+    build_daily_provider,
+    call_akshare as _call_akshare,
+    env_flag as _env_flag,
+    env_int as _env_int,
+    normalize_date,
+    slice_daily_frame,
+)
 from .store import Store
 
-_PROXY_ENV_VARS = (
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "NO_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
-    "no_proxy",
-)
-_PROXY_ENV_LOCK = RLock()
-
-
-def _env_flag(key: str, default: bool = False) -> bool:
-    val = os.getenv(key)
-    if val is None:
-        return default
-    return val.strip().lower() in {"1", "true", "yes", "on"}
+logger = logging.getLogger(__name__)
 
 
 def _env_ttl(key: str, default_hours: float | None) -> timedelta | None:
@@ -45,30 +44,15 @@ def _env_ttl(key: str, default_hours: float | None) -> timedelta | None:
     return None
 
 
-@contextmanager
-def _akshare_proxy_env():
-    """Run akshare calls without inherited proxy env by default."""
-    if _env_flag("ZHANFA_AKSHARE_USE_PROXY", False):
-        yield
-        return
-
-    with _PROXY_ENV_LOCK:
-        saved = {key: os.environ[key] for key in _PROXY_ENV_VARS if key in os.environ}
-        for key in _PROXY_ENV_VARS:
-            os.environ.pop(key, None)
-        try:
-            yield
-        finally:
-            for key in _PROXY_ENV_VARS:
-                os.environ.pop(key, None)
-            os.environ.update(saved)
-
-
-def _call_akshare(func_name: str, *args, **kwargs):
-    with _akshare_proxy_env():
-        import akshare as ak
-
-        return getattr(ak, func_name)(*args, **kwargs)
+@dataclass(frozen=True)
+class DailyFetchStatus:
+    provider: str
+    elapsed_seconds: float
+    request_count: int
+    retry_count: int
+    fallback: bool
+    cache_hit: bool
+    failure_reason: str | None = None
 
 
 class Fetcher:
@@ -84,8 +68,46 @@ class Fetcher:
       - CACHE_TTL_MINUTE_HOURS (default 6): 分钟线行情
     """
 
-    def __init__(self, store: Store | None = None):
+    def __init__(
+        self,
+        store: Store | None = None,
+        daily_provider: str | DailyProvider | None = None,
+    ):
         self.store = store or Store()
+        if daily_provider is None:
+            daily_provider = os.getenv("ZHANFA_DAILY_PROVIDER", "tencent")
+        self.daily_provider = (
+            build_daily_provider(daily_provider)
+            if isinstance(daily_provider, str)
+            else daily_provider
+        )
+        fallback_name = "akshare" if self.daily_provider.name == "tencent" else "tencent"
+        self.daily_fallback: DailyProvider | None = None
+        if _env_flag("ZHANFA_DAILY_FALLBACK_ENABLED", True):
+            try:
+                self.daily_fallback = build_daily_provider(fallback_name)
+            except DailyProviderUnavailable as exc:
+                logger.warning(
+                    "daily_provider_fallback_disabled provider=%s reason=%s",
+                    fallback_name,
+                    exc,
+                )
+        self.daily_overlap_days = _env_int(
+            "ZHANFA_DAILY_INCREMENTAL_OVERLAP_DAYS", 7
+        )
+        self.qfq_full_refresh_days = _env_int(
+            "ZHANFA_QFQ_FULL_REFRESH_DAYS", 30, 1
+        )
+        self.daily_max_concurrency = _env_int(
+            "ZHANFA_DAILY_MAX_CONCURRENCY", 4, 1
+        )
+        self.daily_batch_size = _env_int("ZHANFA_DAILY_BATCH_SIZE", 50, 1)
+        self.daily_batch_max_codes = _env_int(
+            "ZHANFA_DAILY_BATCH_MAX_CODES", 500, 1
+        )
+        self._daily_status: dict[str, DailyFetchStatus] = {}
+        self._status_lock = Lock()
+        self.last_batch_errors: dict[str, str] = {}
         self.ttl_daily = _env_ttl("CACHE_TTL_DAILY_HOURS", 6)
         self.ttl_index_daily = _env_ttl("CACHE_TTL_INDEX_DAILY_HOURS", 6)
         self.ttl_stock_list = _env_ttl("CACHE_TTL_STOCK_LIST_HOURS", 24)
@@ -99,79 +121,299 @@ class Fetcher:
     def daily(
         self,
         code: str,
-        start: str = "20100101",
-        end: str = "21000101",
+        start: str = DEFAULT_DAILY_START,
+        end: str = DEFAULT_DAILY_END,
         adjust: str = "qfq",
     ) -> pd.DataFrame:
-        """获取单只股票日线（前复权），优先读缓存，超出 TTL 或坏缓存自动刷新"""
-        cached = self.store.load(code, "daily", max_age=self.ttl_daily)
-        if cached is not None and len(cached) >= 1:
-            return cached
-        if cached is not None:
-            self.store.delete(code, "daily")  # 坏缓存删除后重新拉取
-
-        df = _call_akshare(
-            "stock_zh_a_hist",
-            symbol=code, period="daily", start_date=start, end_date=end, adjust=adjust
+        """获取股票日线；缓存命中与网络结果都严格遵守请求区间。"""
+        return self._daily_cached(
+            code, start, end, adjust, freq="daily", is_index=False
         )
-        df = self._clean_ohlcv(df)
-        self.store.save(code, df, "daily")
-        return df
 
     def daily_batch(
         self,
         codes: list[str],
-        start: str = "20100101",
-        end: str = "21000101",
+        start: str = DEFAULT_DAILY_START,
+        end: str = DEFAULT_DAILY_END,
         adjust: str = "qfq",
     ) -> dict[str, pd.DataFrame]:
-        """批量获取日线"""
-        result = {}
-        for code in codes:
-            result[code] = self.daily(code, start, end, adjust)
+        """分批、限并发获取日线；单只失败不阻断已完成证券的缓存落盘。"""
+        unique_codes = list(dict.fromkeys(codes))
+        if len(unique_codes) > self.daily_batch_max_codes:
+            raise ValueError(
+                f"daily batch contains {len(unique_codes)} codes; hard limit is "
+                f"{self.daily_batch_max_codes}"
+            )
+        result: dict[str, pd.DataFrame] = {}
+        self.last_batch_errors = {}
+        for offset in range(0, len(unique_codes), self.daily_batch_size):
+            chunk = unique_codes[offset : offset + self.daily_batch_size]
+            with ThreadPoolExecutor(max_workers=self.daily_max_concurrency) as executor:
+                futures = {
+                    executor.submit(self.daily, code, start, end, adjust): code
+                    for code in chunk
+                }
+                for future in as_completed(futures):
+                    code = futures[future]
+                    try:
+                        result[code] = future.result()
+                    except Exception as exc:
+                        self.last_batch_errors[code] = str(exc)
+                        logger.error(
+                            "daily_batch_failure code=%s reason=%s", code, exc
+                        )
         return result
 
     # ── 指数行情 ─────────────────────────────
 
     def index_daily(
-        self, code: str, start: str = "20100101", end: str = "21000101"
+        self,
+        code: str,
+        start: str = DEFAULT_DAILY_START,
+        end: str = DEFAULT_DAILY_END,
+        adjust: str = "",
     ) -> pd.DataFrame:
-        """获取指数日线（如 000300 沪深300）"""
-        cached = self.store.load(code, "index_daily", max_age=self.ttl_index_daily)
-        if cached is not None:
-            return cached
-
-        raw = _call_akshare(
-            "stock_zh_index_daily",
-            symbol=f"sh{code}" if code.startswith("000") else f"sz{code}",
+        """获取指数日线，与股票日线共享 Provider 与缓存契约。"""
+        return self._daily_cached(
+            code, start, end, adjust, freq="index_daily", is_index=True
         )
 
-        # akshare 不同版本返回中/英列名，统一映射为英文
-        name_map = {
-            "日期": "date",
-            "date": "date",
-            "开盘": "open",
-            "open": "open",
-            "最高": "high",
-            "high": "high",
-            "最低": "low",
-            "low": "low",
-            "收盘": "close",
-            "close": "close",
-            "成交量": "volume",
-            "volume": "volume",
-            "成交额": "amount",
-            "amount": "amount",
-        }
-        df = raw.rename(columns={k: v for k, v in name_map.items() if k in raw.columns})
-        if "date" in df.columns:
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.set_index("date")
-            df.index.name = None
-        df = df.sort_index()
-        df = df.loc[start:end]  # type: ignore[misc]
-        self.store.save(code, df, "index_daily")
-        return df
+    def daily_status(self, code: str) -> DailyFetchStatus | None:
+        """返回本 Fetcher 实例最近一次证券日线读取的可观测状态。"""
+        with self._status_lock:
+            return self._daily_status.get(code)
+
+    def _daily_cached(
+        self,
+        code: str,
+        start: str,
+        end: str,
+        adjust: str,
+        *,
+        freq: str,
+        is_index: bool,
+    ) -> pd.DataFrame:
+        start = normalize_date(start)
+        end = normalize_date(end)
+        raw_metadata = self.store.load_metadata(code, freq)
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        fresh = self.store.load(
+            code,
+            freq,
+            max_age=self.ttl_index_daily if is_index else self.ttl_daily,
+        )
+        if (
+            fresh is not None
+            and not fresh.empty
+            and self._cache_covers_start(fresh, metadata, start)
+            and self._cache_adjust_matches(metadata, adjust, freq)
+        ):
+            result = slice_daily_frame(fresh, start, end)
+            self._set_daily_status(
+                code,
+                DailyFetchStatus("cache", 0.0, 0, 0, False, True),
+            )
+            return result
+
+        stale = fresh if fresh is not None else self.store.load(code, freq)
+        if stale is not None and stale.empty:
+            self.store.delete(code, freq)
+            stale = None
+        full_refresh = self._requires_full_refresh(
+            stale, metadata, start, adjust, code, freq
+        )
+        fetch_start = start
+        if stale is not None and not full_refresh:
+            waterline = pd.Timestamp(stale.index.max()) - pd.Timedelta(
+                days=self.daily_overlap_days
+            )
+            fetch_start = max(start, waterline.strftime("%Y%m%d"))
+
+        provider_result, used_fallback = self._fetch_daily_provider(
+            code, fetch_start, end, adjust, is_index=is_index
+        )
+        if (
+            stale is not None
+            and not full_refresh
+            and adjust
+            and metadata.get("provider") != provider_result.provider
+        ):
+            # 复权历史不能把不同来源片段静默拼接；回退后改为同源全量覆盖。
+            provider = (
+                self.daily_provider
+                if self.daily_provider.name == provider_result.provider
+                else self.daily_fallback
+            )
+            if provider is None:
+                raise DailyProviderError(
+                    "Adjusted cache requires a same-provider full refresh"
+                )
+            provider_result = provider.fetch(
+                code, start, end, adjust, is_index=is_index
+            )
+            full_refresh = True
+
+        if stale is not None and not full_refresh:
+            combined = pd.concat([stale, provider_result.frame]).sort_index()
+            combined = combined[~combined.index.duplicated(keep="last")]
+        else:
+            combined = provider_result.frame
+        if combined.empty:
+            raise DailyProviderError(
+                f"Refusing to write empty {freq} cache for {code}"
+            )
+        self.store.save(code, combined, freq)
+        updated_at = datetime.now(timezone.utc).isoformat()
+        full_refresh_at = (
+            updated_at if full_refresh else metadata.get("full_refresh_at", updated_at)
+        )
+        self.store.save_metadata(
+            code,
+            freq,
+            {
+                "provider": provider_result.provider,
+                "adjust": adjust,
+                "updated_at": updated_at,
+                "full_refresh_at": full_refresh_at,
+                "request_count": provider_result.request_count,
+                "retry_count": provider_result.retry_count,
+                "coverage_start": min(
+                    start, str(metadata.get("coverage_start", start))
+                ),
+            },
+        )
+        status = DailyFetchStatus(
+            provider_result.provider,
+            provider_result.elapsed_seconds,
+            provider_result.request_count,
+            provider_result.retry_count,
+            used_fallback,
+            False,
+        )
+        self._set_daily_status(code, status)
+        logger.info(
+            "daily_fetch provider=%s code=%s elapsed=%.3f requests=%s retries=%s "
+            "fallback=%s rows=%s",
+            status.provider,
+            code,
+            status.elapsed_seconds,
+            status.request_count,
+            status.retry_count,
+            status.fallback,
+            len(provider_result.frame),
+        )
+        return slice_daily_frame(combined, start, end)
+
+    def _fetch_daily_provider(
+        self,
+        code: str,
+        start: str,
+        end: str,
+        adjust: str,
+        *,
+        is_index: bool,
+    ) -> tuple[ProviderResult, bool]:
+        try:
+            return (
+                self.daily_provider.fetch(
+                    code, start, end, adjust, is_index=is_index
+                ),
+                False,
+            )
+        except Exception as primary_error:
+            if self.daily_fallback is None:
+                self._record_failure(code, self.daily_provider.name, primary_error)
+                raise
+            logger.warning(
+                "daily_provider_fallback primary=%s fallback=%s code=%s reason=%s",
+                self.daily_provider.name,
+                self.daily_fallback.name,
+                code,
+                primary_error,
+            )
+            try:
+                return (
+                    self.daily_fallback.fetch(
+                        code, start, end, adjust, is_index=is_index
+                    ),
+                    True,
+                )
+            except Exception as fallback_error:
+                reason = (
+                    f"primary {self.daily_provider.name}: {primary_error}; "
+                    f"fallback {self.daily_fallback.name}: {fallback_error}"
+                )
+                self._record_failure(code, self.daily_fallback.name, reason)
+                raise DailyProviderError(reason) from fallback_error
+
+    def _requires_full_refresh(
+        self,
+        stale: pd.DataFrame | None,
+        metadata: dict[str, object],
+        start: str,
+        adjust: str,
+        code: str,
+        freq: str,
+    ) -> bool:
+        if stale is None or stale.empty:
+            return True
+        if metadata.get("adjust") not in (None, adjust):
+            return True
+        if not self._cache_covers_start(stale, metadata, start):
+            return True
+        if adjust and metadata.get("provider") != self.daily_provider.name:
+            return True
+        if adjust:
+            full_refresh_at = metadata.get("full_refresh_at")
+            if not isinstance(full_refresh_at, str):
+                return True
+            try:
+                refreshed = datetime.fromisoformat(full_refresh_at)
+            except ValueError:
+                return True
+            if refreshed.tzinfo is None:
+                refreshed = refreshed.replace(tzinfo=timezone.utc)
+            age = datetime.now(timezone.utc) - refreshed
+            if age >= timedelta(days=self.qfq_full_refresh_days):
+                return True
+        return False
+
+    @staticmethod
+    def _cache_covers_start(
+        frame: pd.DataFrame, metadata: dict[str, object], start: str
+    ) -> bool:
+        coverage_start = metadata.get("coverage_start")
+        if isinstance(coverage_start, str):
+            try:
+                return normalize_date(start) >= normalize_date(coverage_start)
+            except ValueError:
+                pass
+        return pd.Timestamp(start) >= pd.Timestamp(frame.index.min())
+
+    @staticmethod
+    def _cache_adjust_matches(
+        metadata: dict[str, object], adjust: str, freq: str
+    ) -> bool:
+        cached_adjust = metadata.get("adjust")
+        if isinstance(cached_adjust, str):
+            return cached_adjust == adjust
+        # TICKET-065 之前的股票缓存默认前复权，指数缓存默认不复权。
+        return (freq == "daily" and adjust == "qfq") or (
+            freq == "index_daily" and adjust == ""
+        )
+
+    def _record_failure(self, code: str, provider: str, error: object) -> None:
+        self._set_daily_status(
+            code,
+            DailyFetchStatus(provider, 0.0, 0, 0, False, False, str(error)),
+        )
+        logger.error(
+            "daily_fetch_failure provider=%s code=%s reason=%s", provider, code, error
+        )
+
+    def _set_daily_status(self, code: str, status: DailyFetchStatus) -> None:
+        with self._status_lock:
+            self._daily_status[code] = status
 
     # ── 成分股 ──────────────────────────────
 

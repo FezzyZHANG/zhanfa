@@ -205,3 +205,39 @@ uv run pytest tests/test_data/test_fetcher.py -q
 uv run ruff check src/zhanfa/data/fetcher.py tests/test_data/test_fetcher.py
 uv run mypy src/
 ```
+
+## 2026-07-13 东方财富 K 线 HTTPS API 断连
+
+**症状**: `uv run python scripts/fetch_data.py` 能从缓存读取沪深 300 成分股，但逐只拉取日线时全部失败，错误为 `Connection aborted` / `RemoteDisconnected('Remote end closed connection without response')`。
+
+**定位**:
+- `Fetcher` 的代理屏蔽逻辑正常生效，akshare 调用期间 `HTTP_PROXY` / `HTTPS_PROXY` 已被移除。
+- 直接请求 `https://push2his.eastmoney.com/api/qt/stock/kline/get` 在本机被远端断开，根路径仍可返回 404，说明主机可达但 K 线接口路径不可用。
+- AKShare 1.18.64 文档仍将 `stock_zh_a_hist` 标为东方财富历史行情接口；GitHub main 当前源码仍使用同一 `https://push2his.eastmoney.com/api/qt/stock/kline/get` 端点，升级 akshare 不足以规避该断连。
+- 文档列出的新浪 `stock_zh_a_daily` 可用，但明确提示多次获取容易封禁 IP；腾讯历史日线底层接口本地验证可用。
+
+**修复**:
+- TICKET-065 将腾讯直连设为本地研究模式的默认日线 Provider，akshare 保留为可配置主源/回退；不再经由会在北交所触发 `KeyError: 'day'` 的 `stock_zh_a_hist_tx` 起始日期探测。
+- 沪、深、北交所映射分别使用 `sh`、`sz`、`bj`，指数 `399xxx` 走深市，其余当前支持指数走沪市。
+- 腾讯响应必须通过 HTTP 状态、业务 `code`、证券键、`day/qfqday/hfqday` 键、行长度和必填数值校验。超时、429/5xx 与非 JSON 响应按指数退避重试，连续失败触发熔断。
+- 统一单位为成交量“手”、成交额“万元”、换手率“百分数”。AKShare 腾讯包装器的 `amount` 实际是成交量，不能作为成交额写入缓存。
+- 缓存旁路 `.meta.json` 记录 Provider 与复权方式；TTL 过期后从水位前 7 天增量抓取，前复权每 30 天同源全量校准。来源变化时不得拼接复权片段。
+
+**切换与排障**:
+
+1. 查看 `ZHANFA_DAILY_PROVIDER`，默认 `tencent`；紧急恢复旧路径设为 `akshare`。
+2. 查看 `ZHANFA_DAILY_FALLBACK_ENABLED`；设为 `false` 可验证主 Provider 的原始失败。
+3. 日志 `daily_fetch` / `daily_provider_retry` / `daily_provider_fallback` / `daily_fetch_failure` 包含 Provider、耗时、请求数、重试、fallback 和最终失败原因。
+4. `<freq>/<code>.meta.json` 可确认缓存来源、复权方式和最近请求统计；parquet 存在但元数据缺失的旧前复权缓存会在过期后同源全量刷新。
+5. 商业、公开或生产模式未完成授权评估时不要设置风险接受；Provider 会拒绝直接启用腾讯。
+
+**复查命令**:
+
+```bash
+uv run pytest tests/test_data/test_fetcher.py -q
+uv run pytest tests/test_data/test_daily_providers.py -q
+uv run ruff check src/
+uv run mypy src/
+uv run python scripts/reconcile_daily_providers.py --start 20260701 --end 20260713
+uv run python scripts/fetch_data.py
+```

@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 
 from zhanfa.data import Fetcher
+from zhanfa.data.daily_providers import DEFAULT_DAILY_END, DEFAULT_DAILY_START
 from zhanfa.data.pipeline import Pipeline
 from zhanfa.strategies import indicators as ind
 
@@ -70,7 +71,10 @@ def get_stock_meta(code: str) -> dict | None:
 
 
 def get_daily(
-    code: str, start: str = "20100101", end: str = "21000101", freq: str = "daily"
+    code: str,
+    start: str = DEFAULT_DAILY_START,
+    end: str = DEFAULT_DAILY_END,
+    freq: str = "daily",
 ) -> dict:
     fetcher = Fetcher()
     if freq in ("60min", "30min", "15min", "1h"):
@@ -95,7 +99,9 @@ def get_financial(code: str, years: int = 3) -> dict:
     return {"code": code, "years": years, "data": data}
 
 
-def get_indicators(code: str, start: str = "20100101", end: str = "21000101") -> dict:
+def get_indicators(
+    code: str, start: str = DEFAULT_DAILY_START, end: str = DEFAULT_DAILY_END
+) -> dict:
     fetcher = Fetcher()
     df = fetcher.daily(code, start=start, end=end)
     df = Pipeline.clean(df)

@@ -113,6 +113,19 @@ def get_stock_status(
             result.daily_end = info.get("end")
             result.daily_rows = info.get("rows", 0)
             result.daily_cached_at = store.mtime(code, "daily")
+            metadata = store.load_metadata(code, "daily") or {}
+            provider = metadata.get("provider")
+            adjust = metadata.get("adjust")
+            request_count = metadata.get("request_count")
+            retry_count = metadata.get("retry_count")
+            result.daily_provider = str(provider) if provider is not None else None
+            result.daily_adjust = str(adjust) if adjust is not None else None
+            result.daily_request_count = (
+                int(request_count) if isinstance(request_count, int) else None
+            )
+            result.daily_retry_count = (
+                int(retry_count) if isinstance(retry_count, int) else None
+            )
     except Exception:
         logger.warning(
             "Failed to read daily cache for stock-status (code=%s)", code, exc_info=True
@@ -218,5 +231,7 @@ def refresh(body: RefreshRequest):
         updated=result["updated"],
         failed=result["failed"],
         new_discovered=result["new_discovered"],
+        deferred=result.get("deferred", 0),
+        providers=result.get("providers", {}),
         errors=errors,
     )

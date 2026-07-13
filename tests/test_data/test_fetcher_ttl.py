@@ -1,14 +1,9 @@
 """Fetcher TTL & cache integrity tests."""
 
-import os
-import tempfile
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
-
 from zhanfa.data.fetcher import Fetcher, _env_ttl
 from zhanfa.data.store import Store
 
@@ -71,7 +66,7 @@ class TestCacheIntegrityDaily:
         mock_store.load.return_value = empty_df
         # After delete, re-fetch happens
 
-        f = Fetcher(store=mock_store)
+        f = Fetcher(store=mock_store, daily_provider="akshare")
         result = f.daily("000001")
         assert len(result) == 2
         # Should delete the bad cache before re-fetch
@@ -86,6 +81,7 @@ class TestCacheIntegrityDaily:
             index=pd.date_range("2024-01-01", periods=2)
         )
         mock_store.load.return_value = valid_df
+        mock_store.load_metadata.return_value = {"coverage_start": "20180101"}
 
         f = Fetcher(store=mock_store)
         result = f.daily("000001")

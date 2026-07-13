@@ -377,6 +377,10 @@ class StockDataStatus(BaseModel):
     daily_end: date | None = None
     daily_rows: int = 0
     daily_cached_at: datetime | None = None
+    daily_provider: str | None = None
+    daily_adjust: str | None = None
+    daily_request_count: int | None = None
+    daily_retry_count: int | None = None
     has_financial: bool = False
     financial_start: date | None = None
     financial_end: date | None = None
@@ -407,6 +411,8 @@ class RefreshResult(BaseModel):
     updated: int = 0
     failed: int = 0
     new_discovered: int = 0
+    deferred: int = 0
+    providers: dict[str, str] = Field(default_factory=dict)
     errors: list[RefreshError] = Field(default_factory=list)
 
 

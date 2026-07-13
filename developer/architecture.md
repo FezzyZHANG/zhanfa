@@ -29,9 +29,19 @@
 │  │   - strategies, stocks, financials, watchlists,        │
 │  │     backtest_results                                   │
 │  ├── Parquet 文件          ← 历史 K 线 (保持不变)        │
-│  └── akshare API           ← 外部数据源                  │
+│  └── DailyProvider / akshare ← 外部数据源                │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### 日线 Provider 边界
+
+`src/zhanfa/data/daily_providers.py` 定义股票/指数共用的最小 `DailyProvider.fetch()` 契约。腾讯直连和 akshare 回退都在此完成代码映射、字段/单位标准化与上游错误封装；`Fetcher` 只负责缓存、增量水位、来源切换和观测，service、router 与 workflow 不判断具体来源。
+
+研究模式默认路由为 `tencent → akshare`，可用 `ZHANFA_DAILY_PROVIDER` 反转主源或用 `ZHANFA_DAILY_FALLBACK_ENABLED` 禁用回退。腾讯直连包含连接/读取超时、指数退避与抖动、最大重试、每实例有界信号量和连续失败熔断。批量刷新按 50 只分批、默认最多 4 并发，单次工作流硬上限 500 只，逐只缓存即断点。
+
+`Store` 为日线 parquet 保存同名 `.meta.json`，记录 Provider、复权方式、更新时间、请求与重试次数。TTL 过期时从缓存水位前 7 天增量拉取；前复权每 30 天同源全量校准。复权方式或来源不一致时全量覆盖，避免跨来源片段拼接。parquet 与元数据均先写同目录临时文件，再用原子替换发布。
+
+腾讯直连只对默认的本地非商业研究用途开启。商业、公开或生产模式必须完成授权评估并显式设置风险接受；这是架构门禁，不是普通运行告警。分钟线、股票列表、指数/行业成分和财务能力仍由现有 akshare/Sina 路径提供。
 
 ## 技术选型理由
 
