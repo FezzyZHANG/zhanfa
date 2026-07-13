@@ -2,6 +2,9 @@
 
 收集股票交易流派与理论，用数据验证、回测、自动化执行。
 
+当前策略研究默认关注 2018 年及以后的 A 股数据；更早历史数据仅在明确指定时使用。
+行情数据仍以 akshare 封装为入口，腾讯行情源迁移调研与切换准备见 `developer/tickets/TICKET-065.md`。
+
 ## 技术栈
 
 [uv](https://github.com/astral-sh/uv) · [akshare](https://github.com/akfamily/akshare) · [pandas](https://pandas.pydata.org) · [vectorbt](https://github.com/polakowo/vectorbt) · [JoinQuant](https://www.joinquant.com) · [React 18](https://react.dev) · [Vite](https://vite.dev) · [Tailwind CSS](https://tailwindcss.com) · [TanStack Router](https://tanstack.com/router) · [TradingView Lightweight Charts](https://github.com/tradingview/lightweight-charts)
@@ -21,7 +24,7 @@ cd frontend && npm install && npm run dev        # 启动前端开发服务器
 
 ```
 src/zhanfa/
-├── data/          数据获取（akshare）、清洗、本地 parquet 缓存
+├── data/          数据获取、清洗、本地 parquet 缓存
 ├── strategies/    交易策略（趋势/动量/基本面/多因子）
 ├── backtest/      vectorbt 回测引擎封装
 ├── jq/            JoinQuant 适配层
