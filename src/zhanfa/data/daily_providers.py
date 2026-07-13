@@ -61,6 +61,17 @@ def env_float(key: str, default: float, minimum: float = 0.0) -> float:
         return default
 
 
+def _retry_after_seconds(response: requests.Response) -> float | None:
+    value = response.headers.get("Retry-After")
+    if not value:
+        return None
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        logger.warning("daily_provider_invalid_retry_after value=%r", value)
+        return None
+
+
 @contextmanager
 def akshare_proxy_env():
     """默认阻断 akshare 继承系统代理，允许环境变量显式启用。"""
@@ -100,7 +111,39 @@ class DailyProviderUnavailable(DailyProviderError):
 
 
 class _RetryableProviderError(DailyProviderError):
-    pass
+    def __init__(self, message: str, *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+class _RequestStartRateLimiter:
+    """Serialize request starts to a process-wide maximum QPS."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._next_request_at = 0.0
+
+    def wait(
+        self,
+        qps: float,
+        *,
+        monotonic: Callable[[], float],
+        sleep: Callable[[float], None],
+    ) -> None:
+        if qps <= 0:
+            return
+        interval = 1.0 / qps
+        with self._lock:
+            now = monotonic()
+            delay = max(0.0, self._next_request_at - now)
+            while delay:
+                sleep(delay)
+                now = monotonic()
+                delay = max(0.0, self._next_request_at - now)
+            self._next_request_at = max(now, self._next_request_at) + interval
+
+
+_TENCENT_RATE_LIMITER = _RequestStartRateLimiter()
 
 
 @dataclass(frozen=True)
@@ -174,6 +217,8 @@ class TencentDailyProvider:
         session: requests.Session | None = None,
         sleep: Callable[[float], None] = time.sleep,
         jitter: Callable[[], float] = random.random,
+        monotonic: Callable[[], float] = time.monotonic,
+        rate_limiter: _RequestStartRateLimiter | None = None,
     ) -> None:
         self.session = session or requests.Session()
         self.session.trust_env = env_flag("ZHANFA_TENCENT_USE_PROXY", False)
@@ -181,12 +226,15 @@ class TencentDailyProvider:
         self.read_timeout = env_float("ZHANFA_DAILY_READ_TIMEOUT", 10.0, 0.01)
         self.max_retries = env_int("ZHANFA_DAILY_MAX_RETRIES", 3)
         self.backoff_base = env_float("ZHANFA_DAILY_BACKOFF_BASE", 0.5)
+        self.max_qps = env_float("ZHANFA_DAILY_MAX_QPS", 3.0)
         self.circuit_threshold = env_int("ZHANFA_DAILY_CIRCUIT_FAILURES", 5, 1)
         self.circuit_reset_seconds = env_float(
             "ZHANFA_DAILY_CIRCUIT_RESET_SECONDS", 60.0, 0.01
         )
         self._sleep = sleep
         self._jitter = jitter
+        self._monotonic = monotonic
+        self._rate_limiter = rate_limiter or _TENCENT_RATE_LIMITER
         self._semaphore = BoundedSemaphore(
             env_int("ZHANFA_DAILY_MAX_CONCURRENCY", 4, 1)
         )
@@ -261,6 +309,11 @@ class TencentDailyProvider:
             attempts += 1
             try:
                 with self._semaphore:
+                    self._rate_limiter.wait(
+                        self.max_qps,
+                        monotonic=self._monotonic,
+                        sleep=self._sleep,
+                    )
                     response = self.session.get(
                         TENCENT_DAILY_URL,
                         params=params,
@@ -268,7 +321,8 @@ class TencentDailyProvider:
                     )
                 if response.status_code == 429 or response.status_code >= 500:
                     raise _RetryableProviderError(
-                        f"Tencent HTTP {response.status_code} for {symbol}"
+                        f"Tencent HTTP {response.status_code} for {symbol}",
+                        retry_after=_retry_after_seconds(response),
                     )
                 if response.status_code >= 400:
                     raise DailyProviderResponseError(
@@ -289,6 +343,8 @@ class TencentDailyProvider:
                 if attempt >= self.max_retries:
                     break
                 delay = self.backoff_base * (2**attempt) + self._jitter() * self.backoff_base
+                if isinstance(exc, _RetryableProviderError) and exc.retry_after:
+                    delay = max(delay, exc.retry_after)
                 logger.warning(
                     "daily_provider_retry provider=tencent symbol=%s retry=%s delay=%.3f reason=%s",
                     symbol,

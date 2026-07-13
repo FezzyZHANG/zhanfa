@@ -47,6 +47,8 @@ batch = fetcher.daily_batch(["000001", "000002"])  # 批量
 
 腾讯 Provider 支持沪、深、北交所和指数代码，`920002` 映射为 `bj920002`，不经过 AKShare 对北交所会失败的起始日期探测。字段、样本和性能基线见[腾讯日线 Provider 数据对账报告](../developer/reports/tencent-data-reconciliation.md)。
 
+腾讯请求默认执行进程内共享的 3 QPS 启动限速，所有 `Fetcher`/腾讯 Provider 实例及重试请求共用同一额度；可用 `ZHANFA_DAILY_MAX_QPS` 调低，设为 `0` 仅用于显式关闭。HTTP 429 的数值型 `Retry-After` 会覆盖较短的普通指数退避。该额度按进程计算，多 worker 部署需按总预算下调每个 worker 的配置。
+
 ### 分钟级数据
 
 ```python

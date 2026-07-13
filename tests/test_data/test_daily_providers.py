@@ -16,6 +16,7 @@ from zhanfa.data.daily_providers import (
     DailyProviderUnavailable,
     ProviderResult,
     TencentDailyProvider,
+    _RequestStartRateLimiter,
     build_daily_provider,
     tencent_symbol,
 )
@@ -24,10 +25,17 @@ from zhanfa.data.store import Store
 
 
 class FakeResponse:
-    def __init__(self, payload=None, status_code: int = 200, json_error: bool = False):
+    def __init__(
+        self,
+        payload=None,
+        status_code: int = 200,
+        json_error: bool = False,
+        headers: dict[str, str] | None = None,
+    ):
         self.payload = payload
         self.status_code = status_code
         self.json_error = json_error
+        self.headers = headers or {}
 
     def json(self):
         if self.json_error:
@@ -47,6 +55,24 @@ class FakeSession:
         if isinstance(response, Exception):
             raise response
         return response
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 0.0
+        self.delays: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, delay: float) -> None:
+        self.delays.append(delay)
+        self.now += delay
+
+
+@pytest.fixture(autouse=True)
+def disable_qps_limit_by_default_in_unit_tests(monkeypatch):
+    monkeypatch.setenv("ZHANFA_DAILY_MAX_QPS", "0")
 
 
 def tencent_payload(
@@ -172,6 +198,57 @@ def test_tencent_provider_retries_timeout_with_backoff(monkeypatch):
     assert result.request_count == 2
     assert result.retry_count == 1
     assert delays == [0.5]
+
+
+def test_tencent_provider_rate_limits_request_starts_across_instances(monkeypatch):
+    monkeypatch.setenv("ZHANFA_DAILY_MAX_RETRIES", "0")
+    monkeypatch.setenv("ZHANFA_DAILY_MAX_QPS", "2")
+    clock = FakeClock()
+    limiter = _RequestStartRateLimiter()
+    monkeypatch.setattr(
+        "zhanfa.data.daily_providers._TENCENT_RATE_LIMITER", limiter
+    )
+    first = TencentDailyProvider(
+        session=FakeSession([FakeResponse(tencent_payload())]),
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    second = TencentDailyProvider(
+        session=FakeSession([FakeResponse(tencent_payload())]),
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+
+    first.fetch("600519", "20240101", "20240105", "qfq")
+    second.fetch("600519", "20240101", "20240105", "qfq")
+
+    assert clock.delays == [0.5]
+
+
+def test_tencent_provider_defaults_to_three_qps(monkeypatch):
+    monkeypatch.delenv("ZHANFA_DAILY_MAX_QPS")
+    provider = TencentDailyProvider(session=FakeSession([]))
+    assert provider.max_qps == 3.0
+
+
+def test_tencent_provider_honors_retry_after(monkeypatch):
+    monkeypatch.setenv("ZHANFA_DAILY_MAX_RETRIES", "1")
+    monkeypatch.setenv("ZHANFA_DAILY_BACKOFF_BASE", "0.5")
+    delays: list[float] = []
+    session = FakeSession(
+        [
+            FakeResponse(status_code=429, headers={"Retry-After": "2"}),
+            FakeResponse(tencent_payload()),
+        ]
+    )
+    provider = TencentDailyProvider(
+        session=session, sleep=delays.append, jitter=lambda: 0.0
+    )
+
+    result = provider.fetch("600519", "20240101", "20240105", "qfq")
+
+    assert result.retry_count == 1
+    assert delays == [2.0]
 
 
 def test_tencent_provider_retries_non_json(monkeypatch):

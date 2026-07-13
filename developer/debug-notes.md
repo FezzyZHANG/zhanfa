@@ -220,6 +220,7 @@ uv run mypy src/
 - TICKET-065 将腾讯直连设为本地研究模式的默认日线 Provider，akshare 保留为可配置主源/回退；不再经由会在北交所触发 `KeyError: 'day'` 的 `stock_zh_a_hist_tx` 起始日期探测。
 - 沪、深、北交所映射分别使用 `sh`、`sz`、`bj`，指数 `399xxx` 走深市，其余当前支持指数走沪市。
 - 腾讯响应必须通过 HTTP 状态、业务 `code`、证券键、`day/qfqday/hfqday` 键、行长度和必填数值校验。超时、429/5xx 与非 JSON 响应按指数退避重试，连续失败触发熔断。
+- `ZHANFA_DAILY_MAX_CONCURRENCY` 只限制并行数，不能约束快速响应时的瞬时请求率。TICKET-065 补充进程内共享的 `ZHANFA_DAILY_MAX_QPS`（默认 3），在每次网络请求前串行分配启动时刻；所有腾讯 Provider 实例和重试共用额度，429 的数值型 `Retry-After` 优先于较短退避。多 worker 的额度不会跨进程共享，需按总预算拆分。
 - 统一单位为成交量“手”、成交额“万元”、换手率“百分数”。AKShare 腾讯包装器的 `amount` 实际是成交量，不能作为成交额写入缓存。
 - 缓存旁路 `.meta.json` 记录 Provider 与复权方式；TTL 过期后从水位前 7 天增量抓取，前复权每 30 天同源全量校准。来源变化时不得拼接复权片段。
 
@@ -227,9 +228,10 @@ uv run mypy src/
 
 1. 查看 `ZHANFA_DAILY_PROVIDER`，默认 `tencent`；紧急恢复旧路径设为 `akshare`。
 2. 查看 `ZHANFA_DAILY_FALLBACK_ENABLED`；设为 `false` 可验证主 Provider 的原始失败。
-3. 日志 `daily_fetch` / `daily_provider_retry` / `daily_provider_fallback` / `daily_fetch_failure` 包含 Provider、耗时、请求数、重试、fallback 和最终失败原因。
-4. `<freq>/<code>.meta.json` 可确认缓存来源、复权方式和最近请求统计；parquet 存在但元数据缺失的旧前复权缓存会在过期后同源全量刷新。
-5. 商业、公开或生产模式未完成授权评估时不要设置风险接受；Provider 会拒绝直接启用腾讯。
+3. 查看 `ZHANFA_DAILY_MAX_QPS`，默认每个进程 3 QPS；多 worker 时服务总上限约为该值乘以 worker 数。
+4. 日志 `daily_fetch` / `daily_provider_retry` / `daily_provider_fallback` / `daily_fetch_failure` 包含 Provider、耗时、请求数、重试、fallback 和最终失败原因。
+5. `<freq>/<code>.meta.json` 可确认缓存来源、复权方式和最近请求统计；parquet 存在但元数据缺失的旧前复权缓存会在过期后同源全量刷新。
+6. 商业、公开或生产模式未完成授权评估时不要设置风险接受；Provider 会拒绝直接启用腾讯。
 
 **复查命令**:
 

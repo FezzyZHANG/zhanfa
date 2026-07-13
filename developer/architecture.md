@@ -37,7 +37,7 @@
 
 `src/zhanfa/data/daily_providers.py` 定义股票/指数共用的最小 `DailyProvider.fetch()` 契约。腾讯直连和 akshare 回退都在此完成代码映射、字段/单位标准化与上游错误封装；`Fetcher` 只负责缓存、增量水位、来源切换和观测，service、router 与 workflow 不判断具体来源。
 
-研究模式默认路由为 `tencent → akshare`，可用 `ZHANFA_DAILY_PROVIDER` 反转主源或用 `ZHANFA_DAILY_FALLBACK_ENABLED` 禁用回退。腾讯直连包含连接/读取超时、指数退避与抖动、最大重试、每实例有界信号量和连续失败熔断。批量刷新按 50 只分批、默认最多 4 并发，单次工作流硬上限 500 只，逐只缓存即断点。
+研究模式默认路由为 `tencent → akshare`，可用 `ZHANFA_DAILY_PROVIDER` 反转主源或用 `ZHANFA_DAILY_FALLBACK_ENABLED` 禁用回退。腾讯直连包含连接/读取超时、指数退避与抖动、最大重试、每实例有界信号量和连续失败熔断。进程内所有腾讯 Provider 共享请求启动限速器，默认 3 QPS，重试同样占用额度；429 的数值型 `Retry-After` 可延长退避。批量刷新按 50 只分批、默认最多 4 并发，单次工作流硬上限 500 只，逐只缓存即断点。多进程部署的额度彼此独立，需按服务总 QPS 预算配置每个 worker。
 
 `Store` 为日线 parquet 保存同名 `.meta.json`，记录 Provider、复权方式、更新时间、请求与重试次数。TTL 过期时从缓存水位前 7 天增量拉取；前复权每 30 天同源全量校准。复权方式或来源不一致时全量覆盖，避免跨来源片段拼接。parquet 与元数据均先写同目录临时文件，再用原子替换发布。
 
