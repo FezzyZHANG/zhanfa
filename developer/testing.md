@@ -17,7 +17,7 @@
 
 [TICKET-067](tickets/TICKET-067.md) 负责一次性建设 Playwright、隔离前后端运行时、OpenAPI 契约门禁和 CI 诊断产物；框架完成后关闭 `TICKET-067`，后续场景维护仍回到 `TICKET-066`。
 
-当前基线为 `v066`。新增更高编号工单不会自动推进版本；只有复核新工单对前端、API、workflow、存储和外部 Provider 边界的影响，并执行当时已落地的契约及用户旅程测试后，才能同步推进 `TICKET-066` 和工单总览中的版本。
+当前基线为 `v067`。新增更高编号工单不会自动推进版本；只有复核新工单对前端、API、workflow、存储和外部 Provider 边界的影响，并执行当时已落地的契约及用户旅程测试后，才能同步推进 `TICKET-066` 和工单总览中的版本。
 
 用户场景测试遵循以下边界：
 
@@ -214,17 +214,19 @@ npm run contract:generate
 cd frontend
 npm run test:e2e                 # 普通稳定门禁，默认排除 @live
 npm run test:e2e:smoke           # 只跑 @smoke
-npm run test:e2e:scenario        # 只跑 @scenario
+npm run test:e2e:scenario        # 只跑 @scenario；当前包含数据管理成功主旅程
 npm run test:e2e:live            # 显式运行真实 Provider 探针，不进入普通 PR
 
 # 单文件、标题和本地调试
-npm run test:e2e -- e2e/smoke/data-stats.spec.ts
-npm run test:e2e -- --grep "data stats"
+npm run test:e2e -- e2e/smoke/data-lifecycle.spec.ts
+npm run test:e2e -- --grep "data lifecycle"
 npm run test:e2e -- --headed
 npm run test:e2e -- --debug
 ```
 
-`run-e2e.mjs` 每次分配随机端口和独立临时目录，设置临时 SQLite、`DATA_DIR`、Fixture Provider 并关闭 scheduler；Playwright 配置等待后端 `/api/health` 和 Vite URL，始终只使用一个 Chromium worker。外层启动器在成功、失败或受控中断后清理运行目录，并比较运行前后的工作区 `data/` 快照。普通测试不得 `page.route()` 拦截 `/api`；共享 fixture 会把浏览器 console error、page error、站内 API 5xx 和公网请求转成失败。
+`run-e2e.mjs` 每次分配随机端口和独立临时目录，设置临时 SQLite、`DATA_DIR`、Fixture 股票列表与 Daily Provider，并关闭 scheduler；Playwright 配置等待后端 `/api/health` 和 Vite URL，始终只使用一个 Chromium worker。外层启动器在成功、失败或受控中断后清理运行目录，并比较运行前后的工作区 `data/` 快照。普通测试不得 `page.route()` 拦截 `/api`；共享 fixture 会把浏览器 console error、page error、站内 API 5xx 和公网请求转成失败。
+
+当前 `data-lifecycle.spec.ts` 同时标记 `@smoke @scenario`，从空状态真实调用初始化与刷新接口，经过 workflow 写入临时 parquet，断言 Fixture Provider、统计更新和页面重载后的持久状态。初始化必须让 `import_stocks()` 复用 `Fetcher.store`；若改回默认 `data/`，该场景会读到工作区股票列表并因隔离数据数量漂移而失败。
 
 默认会启动全新服务。仅在已手工启动的服务本身也使用隔离 E2E 环境时，才可设置 `E2E_REUSE_SERVERS=true` 并通过 `E2E_BACKEND_PORT` / `E2E_FRONTEND_PORT` 指定端口。
 

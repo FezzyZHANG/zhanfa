@@ -128,7 +128,7 @@ export function RefreshButton({ onRefresh, disabled }: Props) {
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {force
-                    ? '将删除所有已缓存日线数据并从 akshare 重新拉取，耗时较长。'
+                    ? '将删除所有已缓存日线数据并从当前配置的数据源重新拉取，耗时较长。'
                     : '仅拉取最新交易日数据，增量更新已有缓存。'}
                 </p>
                 <div className="flex gap-2 justify-end">

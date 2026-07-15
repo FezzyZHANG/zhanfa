@@ -93,7 +93,7 @@ async def initialize():
 def _initialize_data() -> InitializeResult:
     fetcher = Fetcher()
     fetcher.stock_list()
-    n = import_stocks()
+    n = import_stocks(store=fetcher.store)
     return InitializeResult(stock_count=n, message=f"已导入 {n} 只股票到 stocks 表")
 
 

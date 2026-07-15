@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:e2e": "node e2e/support/run-e2e.mjs",
     "test:e2e:smoke": "node e2e/support/run-e2e.mjs --grep @smoke",
-    "test:e2e:scenario": "node e2e/support/run-e2e.mjs --pass-with-no-tests --grep @scenario",
+    "test:e2e:scenario": "node e2e/support/run-e2e.mjs --grep @scenario",
     "test:e2e:live": "node e2e/support/run-e2e.mjs --live --pass-with-no-tests --grep @live",
     "preview": "vite preview"
   },

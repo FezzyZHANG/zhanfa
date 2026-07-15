@@ -1,8 +1,8 @@
 # TICKET-066: 关键用户场景测试与跨端契约持续维护
 
 - **优先级:** P1 - 高
-- **状态:** 🔁 持续维护（v066）
-- **上次检查版本:** v066
+- **状态:** 🔁 持续维护（v067）
+- **上次检查版本:** v067
 - **依赖:** 009, 019, 032, 054
 
 ## 版本语义
@@ -10,7 +10,7 @@
 本工单是持续维护的质量基线，不使用 `✅ 已完成` 作为常态状态。
 
 - 版本格式为 `vNNN`，其中数字取最近一次完成检查时，工单系统内已纳入检查的最高 `TICKET-NNN` 编号。
-- `v066` 表示本工单已检查截至 `TICKET-066` 的代码与测试体系，不表示下方所有长期改进项已经完成。
+- 当前 `v067` 表示本工单已检查截至 `TICKET-067` 的代码与测试体系，不表示下方所有长期改进项已经完成。
 - 新增更高编号工单后，只有重新完成本工单定义的检查并记录结果，才推进版本；未检查时保留旧版本，让质量基线滞后可见。
 - 若本工单将来被新的质量机制替代，应标记为 `❌ 取消` 并注明替代工单，而不是标记为一次性完成。
 
@@ -34,7 +34,7 @@
 
 - [x] 建立 OpenAPI schema 漂移检查，并让前端 API 类型可由契约生成或校验（框架由 [TICKET-067](TICKET-067.md) 交付）。
 - [x] 建立 Playwright 运行框架，可同时启动隔离 FastAPI 与真实前端（框架由 [TICKET-067](TICKET-067.md) 交付）。
-- [ ] 覆盖数据管理主旅程：空状态 → 初始化 → 抓取 → 写入缓存 → 统计更新 → 页面刷新后仍可见。
+- [x] 覆盖数据管理主旅程：空状态 → 初始化 → 抓取 → 写入缓存 → 统计更新 → 页面刷新后仍可见（首条旅程由 [TICKET-067](TICKET-067.md) 迭代交付）。
 - [ ] 覆盖数据刷新失败、部分失败和 `deferred > 0` 的用户可见反馈。
 - [ ] 对齐数据刷新长任务语义、前端超时及 `RefreshResult` 展示字段。
 
@@ -52,9 +52,11 @@
 
 - `npm run contract:check` 对 FastAPI 当前 schema、固定 `contracts/openapi.json` 和前端生成类型做双重漂移检查；数据管理 API 的实际类型已经引用生成产物。
 - `npm run test:e2e` 自动创建临时 SQLite/parquet、安装 Fixture Daily Provider、关闭 scheduler、启动真实 FastAPI/Vite，并默认用 Chromium 单 worker 运行离线门禁。
-- 首条 `@smoke` 打开数据管理页，真实请求 `/api/data/stats`，断言隔离种子数据，在页面重载后再次确认持久状态；浏览器没有 `/api` 拦截或公网请求。
+- 首条 `@smoke @scenario` 从空数据页开始，通过真实 `/api/data/initialize` 导入 Fixture 股票列表，再经 `/api/data/refresh`、workflow 和 Fixture Daily Provider 写入临时 parquet；统计更新和页面重载后均确认持久状态，浏览器没有 `/api` 拦截或公网请求。
+- 旅程首次运行发现初始化仍通过 `import_stocks()` 默认参数读取工作区 `data/`；现已改为复用 `Fetcher.store`，并补 API 回归测试，隔离检查由“观察种子”提升为“真实写入后验证”。
+- 强制刷新弹窗不再硬编码 `akshare`，改用与 Provider 配置无关的提示，并由浏览器旅程断言。
 - CI `contract-e2e` job 依赖现有 backend/frontend job，失败或取消时上传 HTML report、trace 及前后端日志。
-- 仍未覆盖的风险保持在本工单：数据初始化/刷新完整旅程、部分失败与 `deferred` 展示、自选股、回测，以及独立的真实腾讯定时探针。框架交付不推进 `v066`；下一次滚动检查再按当时最高工单号推进版本。
+- 仍未覆盖的风险保持在本工单：部分失败与 `deferred` 展示、长任务语义、自选股、回测，以及独立的真实腾讯定时探针。
 
 ## 滚动检查步骤
 
@@ -71,6 +73,7 @@
 | 版本 | 日期 | 纳入范围 | 结果 |
 |------|------|----------|------|
 | v066 | 2026-07-15 | TICKET-001～TICKET-066；现有 CI、测试目录、DataPage 数据刷新链路及本工单维护规则 | 已确认缺少浏览器级真实前后端 E2E 和自动契约门禁；初始改进项已列入本工单 |
+| v067 | 2026-07-15 | TICKET-067 框架交付；OpenAPI 契约、隔离启动器、CI job 与首条数据管理旅程 | 修复初始化绕过 `DATA_DIR` 的隔离缺陷和 Provider 过期文案；完整成功旅程已进入普通 PR 门禁，失败/部分失败等场景继续维护 |
 
 ### v066 验证记录
 
@@ -78,6 +81,14 @@
 - `developer/README.md`、`developer/testing.md` 与本工单的持续维护版本均为 `v066`。
 - `git diff --check` 通过；仅有工作区既有的 LF/CRLF 转换提示。
 - 本次只修改开发者文档和工单系统，按 `developer/testing.md` 的纯文档规则未运行代码测试。
+
+### v067 验证记录
+
+- 当前纯数字工单最高编号：`067`；本轮复核范围为 `TICKET-067` 引入的前端、API、workflow、存储、Fixture Provider、契约生成和 CI 变更。
+- `npm run test:e2e:scenario`：1 passed；从空状态完成初始化、Fixture 日线抓取、临时 parquet 写入、统计更新和重载持久化，全程未访问公网。
+- 首轮失败按预期生成 trace、截图、HTML 报告和前后端日志，并暴露 `import_stocks()` 绕过 `DATA_DIR` 读取工作区缓存的问题；修复后 API 回归和 E2E 均通过。
+- 完整 CI 对齐验证通过：ruff、mypy、390 个 Pytest、lint、169 个 Vitest、生产构建、OpenAPI 契约检查和默认 Playwright 门禁均通过；仅保留既有 233 个后端 warning、React `act(...)` 提示和 Vite chunk size warning。
+- `developer/README.md`、`developer/testing.md` 与本工单的持续维护版本已同步为 `v067`；发布检查清单使用“覆盖最高工单”的动态口径，无固定版本漂移。
 
 ## 验收方式
 

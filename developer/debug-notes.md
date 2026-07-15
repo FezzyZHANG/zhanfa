@@ -268,3 +268,10 @@ npx playwright install chromium
 **端口与健康检查**: 默认每次随机选择前后端端口，Playwright 分别等待 `/api/health` 和 Vite 首页；启动超时会把 stderr 输出到控制台，同时保留 `frontend/e2e-artifacts/logs/backend.log` 和 `frontend.log`。如明确复用已隔离的现有服务，可设置 `E2E_REUSE_SERVERS=true` 和两个 `E2E_*_PORT`，但禁止指向普通开发服务。
 
 **失败与清理**: trace、截图、HTML 报告和运行路径见 `frontend/e2e-artifacts/`。外层启动器在 Playwright 退出后删除 `zhanfa-e2e-*` 临时目录；`logs/runtime.json` 中的 `runtimeDir` 在正常成功/失败后应不存在。若仍存在，先确认测试进程是否被强制终止，再按该文件给出的精确路径清理，禁止对系统临时目录做宽泛删除。
+
+**初始化意外导入工作区股票列表**:
+
+- 症状：E2E 初始统计为 0，但点击初始化后突然导入本机 `data/meta/stock_list.parquet` 的数千只股票，而不是 Fixture 列表。
+- 根因：`Fetcher.stock_list()` 写入 `DATA_DIR` 后，`import_stocks()` 无参调用又用默认 `data/` 创建了另一份 `Store`，绕过隔离目录。
+- 固定约束：`/api/data/initialize` 必须调用 `import_stocks(store=fetcher.store)`；不要用扩大 Fixture 数据、删除本地缓存或放宽断言掩盖目录分叉。
+- 回归入口：`uv run pytest tests/test_api/test_data.py -q` 验证 Store 身份传递，`npm run test:e2e:scenario` 验证空状态到重载的完整链路。

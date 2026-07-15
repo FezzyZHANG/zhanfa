@@ -46,6 +46,27 @@ def test_stats_empty_cache(client):
         assert data["cache"]["date_range_start"] is None
 
 
+# ── Initialize ───────────────────────────────────────────
+
+
+def test_initialize_imports_from_fetcher_store(client):
+    mock_store = MagicMock()
+    mock_fetcher = MagicMock(store=mock_store)
+    with (
+        patch("zhanfa.api.routers.data.Fetcher", return_value=mock_fetcher),
+        patch("zhanfa.api.routers.data.import_stocks", return_value=1) as import_mock,
+    ):
+        response = client.post("/api/data/initialize")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "stock_count": 1,
+        "message": "已导入 1 只股票到 stocks 表",
+    }
+    mock_fetcher.stock_list.assert_called_once_with()
+    import_mock.assert_called_once_with(store=mock_store)
+
+
 # ── Stock Status ─────────────────────────────────────────
 
 

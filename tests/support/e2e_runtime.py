@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -54,43 +53,34 @@ class FixtureDailyProvider:
 
 
 def create_e2e_app(data_dir: Path, *, use_fixture_provider: bool = True):
-    """Create and seed an isolated app, installing fixtures unless live mode is used."""
+    """Create an empty isolated app, installing fixtures unless live mode is used."""
     provider = FixtureDailyProvider()
     if use_fixture_provider:
         from zhanfa.data import fetcher as fetcher_module
 
         fetcher_module.build_daily_provider = lambda _name: provider
 
+        def fixture_stock_list(fetcher):
+            if fetcher.store.base.resolve() != data_dir.resolve():
+                raise RuntimeError(
+                    f"Fixture Fetcher store escaped E2E data dir: {fetcher.store.base}"
+                )
+            frame = pd.DataFrame(
+                {
+                    "code": ["600519"],
+                    "name": ["贵州茅台"],
+                    "industry": ["白酒"],
+                }
+            )
+            fetcher.store.save("stock_list", frame, "meta")
+            return frame.copy()
+
+        fetcher_module.Fetcher.stock_list = fixture_stock_list
+
     from zhanfa.api import create_app
-    from zhanfa.data.store import Store
-    from zhanfa.db.base import SessionLocal, init_db
-    from zhanfa.db.models import Stock
+    from zhanfa.db.base import init_db
     from zhanfa.db.register_strategies import register_strategies
 
     init_db()
     register_strategies()
-    with SessionLocal() as session:
-        session.merge(
-            Stock(
-                code="600519",
-                name="贵州茅台",
-                exchange="SH",
-                listed_date=date(2001, 8, 27),
-            )
-        )
-        session.commit()
-
-    fixture = provider.fetch("600519", "20240101", "20240131", "qfq")
-    store = Store(str(data_dir))
-    store.save("600519", fixture.frame, "daily")
-    store.save_metadata(
-        "600519",
-        "daily",
-        {
-            "provider": provider.name,
-            "adjust": "qfq",
-            "request_count": fixture.request_count,
-            "retry_count": fixture.retry_count,
-        },
-    )
     return create_app(init_database=False, start_scheduler=False)
