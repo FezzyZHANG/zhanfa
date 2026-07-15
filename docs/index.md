@@ -1,40 +1,53 @@
-# zhanfa 开发文档
+# zhanfa 使用文档
 
-自动化投资交易辅助系统 —— A 股策略的**数据获取 → 回测 → JoinQuant 验证**全流程。
+自动化投资交易辅助系统 —— A 股策略的**数据获取 → 回测 → Web 可视化 → JoinQuant 验证**全流程。
 
 ## 技术栈
 
 | 层 | 工具 | 用途 |
 |---|---|---|
-| 环境 | uv + Python 3.11 | 包管理与虚拟环境 |
+| 环境 | uv + Python 3.11、Node.js 22.18+ | 后端与前端开发环境 |
 | 数据 | akshare + pandas + pyarrow | A 股行情/财报获取与缓存 |
 | 回测 | vectorbt 0.28 | 向量化回测引擎 |
 | API | FastAPI + Pydantic v2 | RESTful 接口服务 |
+| 前端 | React 19 + TypeScript + Vite | Web 界面与可视化 |
 | 验证 | JoinQuant (聚宽) | 云端仿真/实盘 |
 
 ## 环境准备
 
 ```bash
-git clone <repo>
+git clone https://github.com/FezzyZHANG/zhanfa.git
 cd zhanfa
-uv sync                       # 安装所有依赖
+uv sync --dev                 # 安装 Python 依赖
+uv run python -c "from pathlib import Path; Path('data').mkdir(exist_ok=True)"
+cd frontend
+npm ci                        # 按 lockfile 安装前端依赖
+cd ..
 ```
 
-项目根目录的 `.env` 设置了 `PYTHONIOENCODING=utf-8`，避免 Windows 控制台中文乱码。`uv run` 会自动加载。
+默认配置即可启动本地 SQLite 和文件缓存。需要调整数据库、数据目录、Provider、代理或限速时，参见[环境变量清单](../developer/environment.md)。
 
 ## 快速开始
 
+后端和前端需要在两个终端中分别运行：
+
 ```bash
-# 启动 API 服务（Swagger UI 在 http://127.0.0.1:8000/docs）
+# 终端 A：启动 API（Swagger UI 在 http://127.0.0.1:8000/docs）
 uv run uvicorn zhanfa.api:app --reload
 
-# 启动前端开发服务器（http://localhost:5173）
+# 终端 B：启动前端（http://localhost:5173）
 cd frontend && npm run dev
+```
 
-# 拉取沪深300成分股数据（首次下载，之后读缓存）
+Vite 会把 `/api` 代理到本地 8000 端口。首次启动后打开 <http://localhost:5173/data> 初始化股票列表和本地数据存储。
+
+常用研究入口：
+
+```bash
+# 获取沪深 300 成分列表，并缓存前 5 只成分股的日线示例
 uv run python scripts/fetch_data.py
 
-# 运行双均线策略回测
+# 对沪深 300 指数运行双均线策略回测
 uv run python scripts/run_backtest.py
 
 # 多策略对比 + 可视化
@@ -44,14 +57,14 @@ uv run jupyter lab notebooks/01_quickstart.ipynb
 uv run python scripts/export_jq.py sma_cross
 
 # 运行测试
-uv run pytest tests/ -v
+uv run pytest -v
 ```
 
 ## 部署
 
 ```bash
-# Docker Compose 一键部署
-docker compose up -d
+# Docker Compose 一键部署（前端、后端、PostgreSQL）
+docker compose up --build -d
 
 # 或轻量部署（无需 Docker）
 uv run uvicorn zhanfa.api:app --host 0.0.0.0 --port 8000
@@ -72,8 +85,8 @@ src/zhanfa/
 
 scripts/          可执行入口脚本
 notebooks/        Jupyter 研究笔记本
-docs/             开发文档
-tests/            测试套件（61 个用例）
+docs/             用户与使用文档
+tests/            Python 测试套件
 ```
 
 ## 文档导航
@@ -87,4 +100,4 @@ tests/            测试套件（61 个用例）
 | [automation.md](automation.md) | 定时调度器、工作流、如何添加作业、当前限制 |
 | [frontend.md](frontend.md) | 前端架构、技术栈、路由、组件、Mock 模式、开发流程 |
 
-> **注意**: 本文档描述目标架构。29 个工单已全部完成，核心功能均已交付。如有新的需求或问题，请查阅 `developer/` 下的工单跟踪。
+> **注意**: 本文档描述当前可用架构。持续维护项、未完成能力和新增需求请查阅 `developer/` 下的工单跟踪。
