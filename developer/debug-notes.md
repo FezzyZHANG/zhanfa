@@ -243,3 +243,28 @@ uv run mypy src/
 uv run python scripts/reconcile_daily_providers.py --start 20260701 --end 20260713
 uv run python scripts/fetch_data.py
 ```
+
+## 2026-07-15 Playwright 隔离运行时与 Windows 子进程
+
+**稳定入口**: 在 `frontend/` 执行 `npm run test:e2e`。不要绕过外层 `run-e2e.mjs` 直接启动两个服务，否则临时 SQLite/parquet 生命周期和默认 `data/` 变更检测不会生效。
+
+**Windows `spawn EPERM`**:
+
+- 症状：Playwright 尚未启动就从 Node `child_process.spawn()` 返回 `EPERM`。
+- 原因：受限 Codex/沙箱会阻止 Node 创建浏览器、Vite 或 Python 子进程，不代表应用实现失败。
+- 处理：在允许子进程的普通终端或授权执行环境重跑同一 `npm run test:e2e`；不要改为复用开发数据库规避。
+
+**Windows `npm.cmd` / `spawn EINVAL`**: 启动适配层使用当前 `npm_execpath` 配合 `node` 启动 Vite，避免 Node 24 在 Windows 直接 `spawn npm.cmd` 的 `EINVAL`。如果通过非 npm 入口运行导致 `npm_execpath` 缺失，回到文档规定的 `npm run test:e2e`。
+
+**浏览器未安装**:
+
+```bash
+cd frontend
+npx playwright install chromium
+```
+
+错误通常包含 `Executable doesn't exist ... chromium_headless_shell-*`。CI 使用 `npx playwright install --with-deps chromium`，首版不安装 Firefox/WebKit。
+
+**端口与健康检查**: 默认每次随机选择前后端端口，Playwright 分别等待 `/api/health` 和 Vite 首页；启动超时会把 stderr 输出到控制台，同时保留 `frontend/e2e-artifacts/logs/backend.log` 和 `frontend.log`。如明确复用已隔离的现有服务，可设置 `E2E_REUSE_SERVERS=true` 和两个 `E2E_*_PORT`，但禁止指向普通开发服务。
+
+**失败与清理**: trace、截图、HTML 报告和运行路径见 `frontend/e2e-artifacts/`。外层启动器在 Playwright 退出后删除 `zhanfa-e2e-*` 临时目录；`logs/runtime.json` 中的 `runtimeDir` 在正常成功/失败后应不存在。若仍存在，先确认测试进程是否被强制终止，再按该文件给出的精确路径清理，禁止对系统临时目录做宽泛删除。

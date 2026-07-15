@@ -43,6 +43,14 @@ npm ci
 npm run lint
 npm run test
 npm run build
+
+# contract-e2e job（依赖 backend + frontend job）
+uv sync --dev
+cd frontend
+npm ci
+npm run contract:check
+npx playwright install --with-deps chromium
+npm run test:e2e
 ```
 
 注意：
@@ -178,6 +186,59 @@ npx tsc -p tsconfig.app.json --noEmit
 
 手验时至少确认页面无控制台错误、关键按钮可点击、加载/错误/空状态合理。
 
+## 跨端契约与浏览器 E2E
+
+`TICKET-067` 提供统一的 OpenAPI 漂移门禁与 Playwright 隔离运行时。生成工具要求 Node.js `22.18.0+`；CI 固定使用 `22.18.0`。首次本地运行先安装依赖和 Chromium：
+
+```bash
+cd frontend
+npm ci
+npx playwright install chromium
+```
+
+### OpenAPI 契约
+
+```bash
+# 只验证；普通 PR 和 CI 使用，不改文件
+npm run contract:check
+
+# 仅在后端契约有意变化时更新固定 schema 和生成类型
+npm run contract:generate
+```
+
+`contract:check` 先直接调用 FastAPI `app.openapi()` 与 `contracts/openapi.json` 比较，再将 `@hey-api/openapi-ts@0.99.0` 的结果生成到临时目录，与 `frontend/src/api/generated/` 比较。数据管理 API client 使用的 `DataStats`、`StockDataStatus`、`RefreshRequest` 和 `RefreshResult` 均引用这些生成类型，不是旁路产物。`tests/test_contract/test_openapi_export.py` 会故意删除响应字段，验证漂移检查确实失败。
+
+### Playwright 场景
+
+```bash
+cd frontend
+npm run test:e2e                 # 普通稳定门禁，默认排除 @live
+npm run test:e2e:smoke           # 只跑 @smoke
+npm run test:e2e:scenario        # 只跑 @scenario
+npm run test:e2e:live            # 显式运行真实 Provider 探针，不进入普通 PR
+
+# 单文件、标题和本地调试
+npm run test:e2e -- e2e/smoke/data-stats.spec.ts
+npm run test:e2e -- --grep "data stats"
+npm run test:e2e -- --headed
+npm run test:e2e -- --debug
+```
+
+`run-e2e.mjs` 每次分配随机端口和独立临时目录，设置临时 SQLite、`DATA_DIR`、Fixture Provider 并关闭 scheduler；Playwright 配置等待后端 `/api/health` 和 Vite URL，始终只使用一个 Chromium worker。外层启动器在成功、失败或受控中断后清理运行目录，并比较运行前后的工作区 `data/` 快照。普通测试不得 `page.route()` 拦截 `/api`；共享 fixture 会把浏览器 console error、page error、站内 API 5xx 和公网请求转成失败。
+
+默认会启动全新服务。仅在已手工启动的服务本身也使用隔离 E2E 环境时，才可设置 `E2E_REUSE_SERVERS=true` 并通过 `E2E_BACKEND_PORT` / `E2E_FRONTEND_PORT` 指定端口。
+
+`test:e2e:live` 不注入 Fixture Daily Provider，默认使用腾讯；可通过 `ZHANFA_LIVE_DAILY_PROVIDER` 显式选择真实 Provider。live 仍使用临时数据库和缓存，但会访问公网，只能放入独立定时探针，不能加入普通 PR job。
+
+报告与诊断文件位于 `frontend/e2e-artifacts/`：
+
+- `html-report/`：Playwright HTML 报告；
+- `test-results/`：失败截图、error context 和 `retain-on-failure` trace；
+- `logs/backend.log`、`frontend.log`、`playwright.log`：两个服务和测试进程日志；
+- `logs/runtime.json`：本次临时路径与端口，仅用于定位，数据目录本身在退出时删除。
+
+CI 的 `contract-e2e` job 显式依赖 backend/frontend job，总超时 20 分钟；失败或取消时上传上述目录 7 天，成功不上传 trace 和大体积报告。
+
 ## 数据与外部依赖
 
 ### akshare
@@ -222,4 +283,6 @@ npm run test
 npm run build
 npm run lint
 npx tsc -p tsconfig.app.json --noEmit
+npm run contract:check
+npm run test:e2e:smoke
 ```

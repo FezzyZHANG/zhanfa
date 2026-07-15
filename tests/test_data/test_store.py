@@ -1,6 +1,7 @@
 """Store 单元测试"""
 
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -39,6 +40,10 @@ def _assert_frame_equal(a, b):
 
 
 class TestStore:
+    def test_default_base_dir_uses_environment(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        assert Store().base == Path(tmp_path)
+
     def test_save_and_load(self, store, sample_df):
         store.save("000001", sample_df)
         loaded = store.load("000001")

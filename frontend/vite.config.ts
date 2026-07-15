@@ -53,7 +53,7 @@ function docsPlugin() {
   }
 }
 
-export default defineConfig({
+const config = {
   plugins: [docsPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {
@@ -65,7 +65,9 @@ export default defineConfig({
       allow: ['..'],
     },
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
     },
   },
-})
+}
+
+export default defineConfig(config)

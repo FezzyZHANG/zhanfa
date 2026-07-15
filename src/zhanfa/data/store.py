@@ -18,8 +18,9 @@ _SAFE_PATH_SEGMENT = re.compile(r"^[A-Za-z0-9_.-]+$")
 class Store:
     """本地 parquet 缓存，按 {base_dir}/{freq}/{code}.parquet 组织"""
 
-    def __init__(self, base_dir: str = "data"):
-        self.base = Path(base_dir)
+    def __init__(self, base_dir: str | None = None):
+        resolved_base = base_dir if base_dir is not None else os.getenv("DATA_DIR", "data")
+        self.base = Path(resolved_base)
 
     def _path(self, code: str, freq: str = "daily") -> Path:
         self._validate_path_segment(code, "code")

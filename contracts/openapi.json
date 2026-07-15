@@ -1,0 +1,3785 @@
+{
+  "components": {
+    "schemas": {
+      "BacktestHistoryItem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "max_drawdown": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown"
+          },
+          "sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharpe"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "strategy": {
+            "title": "Strategy",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "total_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Return"
+          }
+        },
+        "required": [
+          "task_id",
+          "code",
+          "strategy",
+          "status",
+          "created_at"
+        ],
+        "title": "BacktestHistoryItem",
+        "type": "object"
+      },
+      "BacktestMetrics": {
+        "properties": {
+          "ann_return": {
+            "title": "Ann Return",
+            "type": "number"
+          },
+          "ann_volatility": {
+            "title": "Ann Volatility",
+            "type": "number"
+          },
+          "calmar": {
+            "title": "Calmar",
+            "type": "number"
+          },
+          "max_drawdown": {
+            "title": "Max Drawdown",
+            "type": "number"
+          },
+          "sharpe": {
+            "title": "Sharpe",
+            "type": "number"
+          },
+          "sortino": {
+            "title": "Sortino",
+            "type": "number"
+          },
+          "total_return": {
+            "title": "Total Return",
+            "type": "number"
+          },
+          "win_rate": {
+            "title": "Win Rate",
+            "type": "number"
+          },
+          "years": {
+            "title": "Years",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_return",
+          "ann_return",
+          "ann_volatility",
+          "sharpe",
+          "sortino",
+          "max_drawdown",
+          "calmar",
+          "win_rate",
+          "years"
+        ],
+        "title": "BacktestMetrics",
+        "type": "object"
+      },
+      "BacktestRequest": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "commission": {
+            "default": 0.0005,
+            "title": "Commission",
+            "type": "number"
+          },
+          "end_date": {
+            "default": "21000101",
+            "title": "End Date",
+            "type": "string"
+          },
+          "initial_capital": {
+            "default": 100000,
+            "title": "Initial Capital",
+            "type": "number"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "slippage": {
+            "default": 0.001,
+            "title": "Slippage",
+            "type": "number"
+          },
+          "start_date": {
+            "default": "20200101",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "strategy": {
+            "title": "Strategy",
+            "type": "string"
+          },
+          "strategy_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Id"
+          }
+        },
+        "required": [
+          "code",
+          "strategy"
+        ],
+        "title": "BacktestRequest",
+        "type": "object"
+      },
+      "BacktestResult": {
+        "properties": {
+          "benchmark_curve": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CurvePoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Curve"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "drawdown_curve": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CurvePoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawdown Curve"
+          },
+          "equity_curve": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CurvePoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equity Curve"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BacktestMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monthly_returns": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MonthlyReturn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Returns"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BacktestRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "trades": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TradeRecord"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trades"
+          },
+          "yearly_returns": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/YearlyReturn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yearly Returns"
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "created_at"
+        ],
+        "title": "BacktestResult",
+        "type": "object"
+      },
+      "CacheStats": {
+        "properties": {
+          "date_range_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range End"
+          },
+          "date_range_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Range Start"
+          },
+          "freq_stats": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Freq Stats",
+            "type": "object"
+          },
+          "last_refreshed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Refreshed At"
+          },
+          "stock_count": {
+            "default": 0,
+            "title": "Stock Count",
+            "type": "integer"
+          },
+          "storage_bytes": {
+            "default": 0,
+            "title": "Storage Bytes",
+            "type": "integer"
+          },
+          "total_rows": {
+            "default": 0,
+            "title": "Total Rows",
+            "type": "integer"
+          }
+        },
+        "title": "CacheStats",
+        "type": "object"
+      },
+      "CurvePoint": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "value"
+        ],
+        "title": "CurvePoint",
+        "type": "object"
+      },
+      "DBStats": {
+        "properties": {
+          "backtest_count": {
+            "default": 0,
+            "title": "Backtest Count",
+            "type": "integer"
+          },
+          "financial_count": {
+            "default": 0,
+            "title": "Financial Count",
+            "type": "integer"
+          },
+          "stock_count": {
+            "default": 0,
+            "title": "Stock Count",
+            "type": "integer"
+          },
+          "strategy_count": {
+            "default": 0,
+            "title": "Strategy Count",
+            "type": "integer"
+          },
+          "watchlist_count": {
+            "default": 0,
+            "title": "Watchlist Count",
+            "type": "integer"
+          }
+        },
+        "title": "DBStats",
+        "type": "object"
+      },
+      "DailyDataPoint": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "close": {
+            "title": "Close",
+            "type": "number"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "title": "Date"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "open": {
+            "title": "Open",
+            "type": "number"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "DailyDataPoint",
+        "type": "object"
+      },
+      "DailyResponse": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DailyDataPoint"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "data"
+        ],
+        "title": "DailyResponse",
+        "type": "object"
+      },
+      "DataStats": {
+        "properties": {
+          "cache": {
+            "$ref": "#/components/schemas/CacheStats"
+          },
+          "database": {
+            "$ref": "#/components/schemas/DBStats"
+          }
+        },
+        "required": [
+          "cache",
+          "database"
+        ],
+        "title": "DataStats",
+        "type": "object"
+      },
+      "DataStatus": {
+        "properties": {
+          "daily_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily End"
+          },
+          "daily_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start"
+          },
+          "financial_periods": {
+            "default": 0,
+            "title": "Financial Periods",
+            "type": "integer"
+          },
+          "has_daily": {
+            "default": false,
+            "title": "Has Daily",
+            "type": "boolean"
+          },
+          "has_financial": {
+            "default": false,
+            "title": "Has Financial",
+            "type": "boolean"
+          }
+        },
+        "title": "DataStatus",
+        "type": "object"
+      },
+      "FinancialDataPoint": {
+        "properties": {
+          "debt_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debt Ratio"
+          },
+          "eps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eps"
+          },
+          "net_margin": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Margin"
+          },
+          "net_profit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Profit"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          },
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue"
+          },
+          "roe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roe"
+          }
+        },
+        "required": [
+          "report_date"
+        ],
+        "title": "FinancialDataPoint",
+        "type": "object"
+      },
+      "FinancialResponse": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FinancialDataPoint"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "years": {
+            "title": "Years",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "years",
+          "data"
+        ],
+        "title": "FinancialResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IndicatorResponse": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/IndicatorSet"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "data"
+        ],
+        "title": "IndicatorResponse",
+        "type": "object"
+      },
+      "IndicatorSet": {
+        "properties": {
+          "boll_lower": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boll Lower"
+          },
+          "boll_mid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boll Mid"
+          },
+          "boll_upper": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boll Upper"
+          },
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "macd_bar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Macd Bar"
+          },
+          "macd_dea": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Macd Dea"
+          },
+          "macd_dif": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Macd Dif"
+          },
+          "rsi_14": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rsi 14"
+          },
+          "sma_120": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sma 120"
+          },
+          "sma_20": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sma 20"
+          },
+          "sma_60": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sma 60"
+          }
+        },
+        "required": [
+          "code",
+          "date"
+        ],
+        "title": "IndicatorSet",
+        "type": "object"
+      },
+      "IndustryComparisonResponse": {
+        "properties": {
+          "industry": {
+            "title": "Industry",
+            "type": "string"
+          },
+          "peers": {
+            "items": {
+              "$ref": "#/components/schemas/IndustryPeer"
+            },
+            "title": "Peers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "industry",
+          "peers"
+        ],
+        "title": "IndustryComparisonResponse",
+        "type": "object"
+      },
+      "IndustryPeer": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "data_freshness": {
+            "default": "missing",
+            "title": "Data Freshness",
+            "type": "string"
+          },
+          "debt_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debt Ratio"
+          },
+          "gross_margin": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Margin"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "net_profit_growth": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Profit Growth"
+          },
+          "revenue_growth": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Growth"
+          },
+          "roe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roe"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "IndustryPeer",
+        "type": "object"
+      },
+      "InitializeResult": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "stock_count": {
+            "title": "Stock Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stock_count",
+          "message"
+        ],
+        "title": "InitializeResult",
+        "type": "object"
+      },
+      "MinuteCacheStatus": {
+        "properties": {
+          "cached_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached At"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "exists": {
+            "default": false,
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "rows": {
+            "default": 0,
+            "title": "Rows",
+            "type": "integer"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          }
+        },
+        "title": "MinuteCacheStatus",
+        "type": "object"
+      },
+      "MonthlyReturn": {
+        "properties": {
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "value"
+        ],
+        "title": "MonthlyReturn",
+        "type": "object"
+      },
+      "QuoteItem": {
+        "properties": {
+          "change_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Pct"
+          },
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "data_freshness": {
+            "default": "unknown",
+            "title": "Data Freshness",
+            "type": "string"
+          },
+          "data_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DataStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dividend_yield": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dividend Yield"
+          },
+          "latest_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Price"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pb"
+          },
+          "pe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pe"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "QuoteItem",
+        "type": "object"
+      },
+      "RefreshError": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "error"
+        ],
+        "title": "RefreshError",
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^\\d{6}$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codes"
+          },
+          "discover_new": {
+            "default": true,
+            "title": "Discover New",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "freq": {
+            "default": "daily",
+            "title": "Freq",
+            "type": "string"
+          },
+          "max_new": {
+            "default": 50,
+            "title": "Max New",
+            "type": "integer"
+          }
+        },
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RefreshResult": {
+        "properties": {
+          "deferred": {
+            "default": 0,
+            "title": "Deferred",
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RefreshError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "new_discovered": {
+            "default": 0,
+            "title": "New Discovered",
+            "type": "integer"
+          },
+          "providers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Providers",
+            "type": "object"
+          },
+          "updated": {
+            "default": 0,
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "title": "RefreshResult",
+        "type": "object"
+      },
+      "SchedulerJob": {
+        "properties": {
+          "func": {
+            "title": "Func",
+            "type": "string"
+          },
+          "time": {
+            "title": "Time",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "func",
+          "time",
+          "type"
+        ],
+        "title": "SchedulerJob",
+        "type": "object"
+      },
+      "SchedulerStatus": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/SchedulerJob"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "last_errors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Last Errors",
+            "type": "array"
+          },
+          "next_run": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Next Run",
+            "type": "object"
+          },
+          "running": {
+            "default": false,
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "jobs"
+        ],
+        "title": "SchedulerStatus",
+        "type": "object"
+      },
+      "SchedulerTriggerRequest": {
+        "properties": {
+          "action": {
+            "default": "update_daily",
+            "title": "Action",
+            "type": "string"
+          },
+          "codes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codes"
+          },
+          "index_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Code"
+          }
+        },
+        "title": "SchedulerTriggerRequest",
+        "type": "object"
+      },
+      "StockDataStatus": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "daily_adjust": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Adjust"
+          },
+          "daily_cached_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Cached At"
+          },
+          "daily_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily End"
+          },
+          "daily_provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Provider"
+          },
+          "daily_request_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Request Count"
+          },
+          "daily_retry_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Retry Count"
+          },
+          "daily_rows": {
+            "default": 0,
+            "title": "Daily Rows",
+            "type": "integer"
+          },
+          "daily_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Start"
+          },
+          "financial_cached_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Financial Cached At"
+          },
+          "financial_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Financial End"
+          },
+          "financial_rows": {
+            "default": 0,
+            "title": "Financial Rows",
+            "type": "integer"
+          },
+          "financial_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Financial Start"
+          },
+          "has_daily": {
+            "default": false,
+            "title": "Has Daily",
+            "type": "boolean"
+          },
+          "has_financial": {
+            "default": false,
+            "title": "Has Financial",
+            "type": "boolean"
+          },
+          "in_watchlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "In Watchlist",
+            "type": "array"
+          },
+          "minute_15": {
+            "$ref": "#/components/schemas/MinuteCacheStatus"
+          },
+          "minute_30": {
+            "$ref": "#/components/schemas/MinuteCacheStatus"
+          },
+          "minute_60": {
+            "$ref": "#/components/schemas/MinuteCacheStatus"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "StockDataStatus",
+        "type": "object"
+      },
+      "StockInfo": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "exchange": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "latest_financial": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Financial"
+          },
+          "listed_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listed Date"
+          },
+          "market_cap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Cap"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "StockInfo",
+        "type": "object"
+      },
+      "StockListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StockInfo"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "page_size",
+          "items"
+        ],
+        "title": "StockListResponse",
+        "type": "object"
+      },
+      "StockSearchResult": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "StockSearchResult",
+        "type": "object"
+      },
+      "StrategyCreate": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "category"
+        ],
+        "title": "StrategyCreate",
+        "type": "object"
+      },
+      "StrategyDetail": {
+        "properties": {
+          "backtest_count": {
+            "default": 0,
+            "title": "Backtest Count",
+            "type": "integer"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Ref"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "StrategyDetail",
+        "type": "object"
+      },
+      "StrategyInfo": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Ref"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "title": "StrategyInfo",
+        "type": "object"
+      },
+      "StrategyUpdate": {
+        "properties": {
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "params"
+        ],
+        "title": "StrategyUpdate",
+        "type": "object"
+      },
+      "TradeRecord": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "pnl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pnl"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "action",
+          "price",
+          "quantity"
+        ],
+        "title": "TradeRecord",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WatchlistBatchAdd": {
+        "properties": {
+          "codes": {
+            "items": {
+              "pattern": "^\\d{6}$",
+              "type": "string"
+            },
+            "title": "Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "title": "WatchlistBatchAdd",
+        "type": "object"
+      },
+      "WatchlistBatchDelete": {
+        "properties": {
+          "codes": {
+            "items": {
+              "pattern": "^\\d{6}$",
+              "type": "string"
+            },
+            "title": "Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "title": "WatchlistBatchDelete",
+        "type": "object"
+      },
+      "WatchlistBatchMove": {
+        "properties": {
+          "codes": {
+            "items": {
+              "pattern": "^\\d{6}$",
+              "type": "string"
+            },
+            "title": "Codes",
+            "type": "array"
+          },
+          "target_watchlist_id": {
+            "title": "Target Watchlist Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_watchlist_id",
+          "codes"
+        ],
+        "title": "WatchlistBatchMove",
+        "type": "object"
+      },
+      "WatchlistCreate": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WatchlistCreate",
+        "type": "object"
+      },
+      "WatchlistItemAdd": {
+        "properties": {
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "WatchlistItemAdd",
+        "type": "object"
+      },
+      "WatchlistItemDetail": {
+        "properties": {
+          "added_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added At"
+          },
+          "code": {
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "WatchlistItemDetail",
+        "type": "object"
+      },
+      "WatchlistItemUpdate": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "WatchlistItemUpdate",
+        "type": "object"
+      },
+      "WatchlistQuoteResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "items"
+        ],
+        "title": "WatchlistQuoteResponse",
+        "type": "object"
+      },
+      "WatchlistResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistItemDetail"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "stock_count": {
+            "title": "Stock Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "stock_count",
+          "created_at"
+        ],
+        "title": "WatchlistResponse",
+        "type": "object"
+      },
+      "WatchlistUpdate": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WatchlistUpdate",
+        "type": "object"
+      },
+      "YearlyReturn": {
+        "properties": {
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "value"
+        ],
+        "title": "YearlyReturn",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "A股策略回测与验证平台 API",
+    "title": "zhanfa API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/backtest/compare": {
+      "get": {
+        "operationId": "filter_backtests_api_backtest_compare_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ids",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Ids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BacktestHistoryItem"
+                  },
+                  "title": "Response Filter Backtests Api Backtest Compare Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Filter Backtests",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/backtest/history": {
+      "get": {
+        "operationId": "get_backtest_history_api_backtest_history_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BacktestHistoryItem"
+                  },
+                  "title": "Response Get Backtest History Api Backtest History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Backtest History",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/backtest/run": {
+      "post": {
+        "operationId": "submit_backtest_api_backtest_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Backtest",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/backtest/{task_id}": {
+      "get": {
+        "operationId": "get_backtest_status_api_backtest__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Backtest Status",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/data/initialize": {
+      "post": {
+        "operationId": "initialize_api_data_initialize_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitializeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Initialize",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/refresh": {
+      "post": {
+        "operationId": "refresh_api_data_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/stats": {
+      "get": {
+        "operationId": "get_stats_api_data_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Stats",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/stock-status": {
+      "get": {
+        "operationId": "get_stock_status_api_data_stock_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockDataStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Stock Status",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/scheduler/status": {
+      "get": {
+        "operationId": "get_status_api_scheduler_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulerStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Status",
+        "tags": [
+          "scheduler"
+        ]
+      }
+    },
+    "/api/scheduler/trigger": {
+      "post": {
+        "operationId": "trigger_api_scheduler_trigger_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulerTriggerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger",
+        "tags": [
+          "scheduler"
+        ]
+      }
+    },
+    "/api/stocks": {
+      "get": {
+        "operationId": "list_stocks_api_stocks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Stocks",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/stocks/industry/{industry}/comparison": {
+      "get": {
+        "operationId": "get_industry_comparison_api_stocks_industry__industry__comparison_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "industry",
+            "required": true,
+            "schema": {
+              "title": "Industry",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndustryComparisonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Industry Comparison",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/stocks/{code}": {
+      "get": {
+        "operationId": "get_stock_api_stocks__code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Stock Api Stocks  Code  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Stock",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/stocks/{code}/daily": {
+      "get": {
+        "operationId": "get_daily_api_stocks__code__daily_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "default": "20180101",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "default": "21000101",
+              "title": "End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "freq",
+            "required": false,
+            "schema": {
+              "default": "daily",
+              "title": "Freq",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Daily",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/stocks/{code}/financial": {
+      "get": {
+        "operationId": "get_financial_api_stocks__code__financial_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "years",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Years",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Financial",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/stocks/{code}/indicators": {
+      "get": {
+        "operationId": "get_indicators_api_stocks__code__indicators_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "default": "20180101",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "default": "21000101",
+              "title": "End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndicatorResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Indicators",
+        "tags": [
+          "stocks"
+        ]
+      }
+    },
+    "/api/strategies": {
+      "get": {
+        "operationId": "list_strategies_api_strategies_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StrategyInfo"
+                  },
+                  "title": "Response List Strategies Api Strategies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Strategies",
+        "tags": [
+          "strategies"
+        ]
+      },
+      "post": {
+        "operationId": "create_strategy_api_strategies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Strategy",
+        "tags": [
+          "strategies"
+        ]
+      }
+    },
+    "/api/strategies/{strategy_id}": {
+      "get": {
+        "operationId": "get_strategy_api_strategies__strategy_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "strategy_id",
+            "required": true,
+            "schema": {
+              "title": "Strategy Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Strategy",
+        "tags": [
+          "strategies"
+        ]
+      },
+      "put": {
+        "operationId": "update_strategy_api_strategies__strategy_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "strategy_id",
+            "required": true,
+            "schema": {
+              "title": "Strategy Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Strategy",
+        "tags": [
+          "strategies"
+        ]
+      }
+    },
+    "/api/strategies/{strategy_id}/results": {
+      "get": {
+        "operationId": "get_strategy_results_api_strategies__strategy_id__results_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "strategy_id",
+            "required": true,
+            "schema": {
+              "title": "Strategy Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Strategy Results",
+        "tags": [
+          "strategies"
+        ]
+      }
+    },
+    "/api/watchlists": {
+      "get": {
+        "operationId": "list_watchlists_api_watchlists_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatchlistResponse"
+                  },
+                  "title": "Response List Watchlists Api Watchlists Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Watchlists",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "post": {
+        "operationId": "create_watchlist_api_watchlists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Watchlist",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/search": {
+      "get": {
+        "operationId": "search_api_watchlists_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StockSearchResult"
+                  },
+                  "title": "Response Search Api Watchlists Search Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}": {
+      "delete": {
+        "operationId": "delete_watchlist_api_watchlists__wl_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Watchlist",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "get": {
+        "operationId": "get_watchlist_api_watchlists__wl_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Watchlist",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "put": {
+        "operationId": "update_watchlist_api_watchlists__wl_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Watchlist",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/export": {
+      "get": {
+        "operationId": "export_csv_api_watchlists__wl_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Csv",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items": {
+      "post": {
+        "operationId": "add_item_api_watchlists__wl_id__items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistItemAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Item",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items/batch": {
+      "post": {
+        "operationId": "batch_add_items_api_watchlists__wl_id__items_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistBatchAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Add Items",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items/batch-delete": {
+      "post": {
+        "operationId": "batch_delete_items_api_watchlists__wl_id__items_batch_delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistBatchDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Delete Items",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items/batch-move": {
+      "post": {
+        "operationId": "batch_move_items_api_watchlists__wl_id__items_batch_move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistBatchMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Move Items",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items/batch/preview": {
+      "post": {
+        "operationId": "batch_add_preview_api_watchlists__wl_id__items_batch_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistBatchAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Add Preview",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/items/{code}": {
+      "delete": {
+        "operationId": "remove_item_api_watchlists__wl_id__items__code__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Item",
+        "tags": [
+          "watchlists"
+        ]
+      },
+      "put": {
+        "operationId": "update_item_notes_api_watchlists__wl_id__items__code__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{6}$",
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistItemUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Item Notes",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    },
+    "/api/watchlists/{wl_id}/quotes": {
+      "get": {
+        "operationId": "get_quotes_api_watchlists__wl_id__quotes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wl_id",
+            "required": true,
+            "schema": {
+              "title": "Wl Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistQuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quotes",
+        "tags": [
+          "watchlists"
+        ]
+      }
+    }
+  }
+}

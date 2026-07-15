@@ -20,6 +20,7 @@ data/**/*.meta.json
 
 # Node
 node_modules/
+frontend/e2e-artifacts/
 
 # Cache
 .mypy_cache/

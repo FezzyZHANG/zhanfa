@@ -6,8 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "contract:generate": "npm run contract:schema && openapi-ts",
+    "contract:schema": "uv run python ../scripts/export_openapi.py --output ../contracts/openapi.json",
+    "contract:check": "node e2e/support/check-contract.mjs",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "node e2e/support/run-e2e.mjs",
+    "test:e2e:smoke": "node e2e/support/run-e2e.mjs --grep @smoke",
+    "test:e2e:scenario": "node e2e/support/run-e2e.mjs --pass-with-no-tests --grep @scenario",
+    "test:e2e:live": "node e2e/support/run-e2e.mjs --live --pass-with-no-tests --grep @live",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -27,6 +34,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@hey-api/openapi-ts": "0.99.0",
+    "@playwright/test": "1.61.1",
     "@tailwindcss/vite": "^4.2.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -32,8 +32,8 @@
 
 ### Critical
 
-- [ ] 建立 OpenAPI schema 漂移检查，并让前端 API 类型可由契约生成或校验（框架建设见 [TICKET-067](TICKET-067.md)）。
-- [ ] 建立 Playwright 运行框架，可同时启动隔离 FastAPI 与真实前端（框架建设见 [TICKET-067](TICKET-067.md)）。
+- [x] 建立 OpenAPI schema 漂移检查，并让前端 API 类型可由契约生成或校验（框架由 [TICKET-067](TICKET-067.md) 交付）。
+- [x] 建立 Playwright 运行框架，可同时启动隔离 FastAPI 与真实前端（框架由 [TICKET-067](TICKET-067.md) 交付）。
 - [ ] 覆盖数据管理主旅程：空状态 → 初始化 → 抓取 → 写入缓存 → 统计更新 → 页面刷新后仍可见。
 - [ ] 覆盖数据刷新失败、部分失败和 `deferred > 0` 的用户可见反馈。
 - [ ] 对齐数据刷新长任务语义、前端超时及 `RefreshResult` 展示字段。
@@ -42,11 +42,19 @@
 
 - [ ] 覆盖自选股创建、添加、删除和持久化的浏览器旅程。
 - [ ] 覆盖回测提交、状态轮询和结果页展示的浏览器旅程。
-- [ ] CI 失败时上传 Playwright trace、前后端日志和测试报告。
-- [ ] 使用临时 SQLite、临时 parquet 目录和确定性 Fixture Provider，保证场景隔离、可重复。
+- [x] CI 失败时上传 Playwright trace、前后端日志和测试报告。
+- [x] 使用临时 SQLite、临时 parquet 目录和确定性 Fixture Provider，保证场景隔离、可重复。
 - [ ] 增加少量真实腾讯 Provider 定时探针；该探针不作为普通 PR 的稳定门禁。
 
 其中契约、Playwright、隔离运行时和 CI 诊断产物的首版框架由 `TICKET-067` 一次性建设；框架交付后的场景增删和版本检查仍由本工单维护。
+
+### TICKET-067 框架交接（2026-07-15）
+
+- `npm run contract:check` 对 FastAPI 当前 schema、固定 `contracts/openapi.json` 和前端生成类型做双重漂移检查；数据管理 API 的实际类型已经引用生成产物。
+- `npm run test:e2e` 自动创建临时 SQLite/parquet、安装 Fixture Daily Provider、关闭 scheduler、启动真实 FastAPI/Vite，并默认用 Chromium 单 worker 运行离线门禁。
+- 首条 `@smoke` 打开数据管理页，真实请求 `/api/data/stats`，断言隔离种子数据，在页面重载后再次确认持久状态；浏览器没有 `/api` 拦截或公网请求。
+- CI `contract-e2e` job 依赖现有 backend/frontend job，失败或取消时上传 HTML report、trace 及前后端日志。
+- 仍未覆盖的风险保持在本工单：数据初始化/刷新完整旅程、部分失败与 `deferred` 展示、自选股、回测，以及独立的真实腾讯定时探针。框架交付不推进 `v066`；下一次滚动检查再按当时最高工单号推进版本。
 
 ## 滚动检查步骤
 

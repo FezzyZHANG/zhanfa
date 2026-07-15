@@ -609,6 +609,8 @@ export function mockRefreshData(codes?: string[] | null, force?: boolean): Refre
     updated: force ? list.length : Math.max(1, list.length - 1),
     failed: force ? 0 : 1,
     new_discovered: force ? 2 : 0,
+    deferred: 0,
+    providers: Object.fromEntries(list.map((code) => [code, 'mock'])),
     errors: force
       ? []
       : [{ code: list[list.length - 1], error: '模拟网络错误' }],

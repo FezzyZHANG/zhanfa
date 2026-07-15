@@ -1,3 +1,13 @@
+import type {
+  CacheStats as GeneratedCacheStats,
+  DataStats as GeneratedDataStats,
+  DbStats as GeneratedDBStats,
+  RefreshError as GeneratedRefreshError,
+  RefreshRequest as GeneratedRefreshRequest,
+  RefreshResult as GeneratedRefreshResult,
+  StockDataStatus as GeneratedStockDataStatus,
+} from '@/api/generated/types.gen';
+
 export type StrategyCategory = 'trend' | 'momentum' | 'fundamental' | 'composite';
 
 export interface ParamDef {
@@ -216,61 +226,30 @@ export interface DateRange {
 
 // ── Data Management ──────────────────────────────
 
-export interface CacheStats {
-  stock_count: number;
-  total_rows: number;
-  storage_bytes: number;
-  date_range_start: string | null;
-  date_range_end: string | null;
-  freq_stats: Record<string, number>;
-  last_refreshed_at: string | null;
-}
+type CompleteResponse<T> = { [Key in keyof T]-?: T[Key] };
 
-export interface DBStats {
-  stock_count: number;
-  financial_count: number;
-  watchlist_count: number;
-  strategy_count: number;
-  backtest_count: number;
-}
-
-export interface DataStats {
+export type CacheStats = CompleteResponse<GeneratedCacheStats>;
+export type DBStats = CompleteResponse<GeneratedDBStats>;
+export type DataStats = Omit<GeneratedDataStats, 'cache' | 'database'> & {
   cache: CacheStats;
   database: DBStats;
-}
-
-export interface StockDataStatus {
-  code: string;
-  name: string;
-  has_daily: boolean;
-  daily_start: string | null;
-  daily_end: string | null;
-  daily_rows: number;
-  daily_cached_at: string | null;
-  has_financial: boolean;
-  financial_start: string | null;
-  financial_end: string | null;
-  financial_rows: number;
-  financial_cached_at: string | null;
-  in_watchlist: string[];
-}
-
-export interface RefreshRequest {
-  codes?: string[] | null;
-  freq?: string;
-  force?: boolean;
-  discover_new?: boolean;
-  max_new?: number;
-}
-
-export interface RefreshError {
-  code: string;
-  error: string;
-}
-
-export interface RefreshResult {
-  updated: number;
-  failed: number;
-  new_discovered: number;
-  errors: RefreshError[];
-}
+};
+type StockStatusRequiredFields =
+  | 'code'
+  | 'name'
+  | 'has_daily'
+  | 'daily_start'
+  | 'daily_end'
+  | 'daily_rows'
+  | 'daily_cached_at'
+  | 'has_financial'
+  | 'financial_start'
+  | 'financial_end'
+  | 'financial_rows'
+  | 'financial_cached_at'
+  | 'in_watchlist';
+export type StockDataStatus = GeneratedStockDataStatus &
+  Required<Pick<GeneratedStockDataStatus, StockStatusRequiredFields>>;
+export type RefreshRequest = GeneratedRefreshRequest;
+export type RefreshError = GeneratedRefreshError;
+export type RefreshResult = CompleteResponse<GeneratedRefreshResult>;
