@@ -32,8 +32,8 @@
 
 ### Critical
 
-- [ ] 建立 OpenAPI schema 漂移检查，并让前端 API 类型可由契约生成或校验。
-- [ ] 建立 Playwright 运行框架，可同时启动隔离 FastAPI 与真实前端。
+- [ ] 建立 OpenAPI schema 漂移检查，并让前端 API 类型可由契约生成或校验（框架建设见 [TICKET-067](TICKET-067.md)）。
+- [ ] 建立 Playwright 运行框架，可同时启动隔离 FastAPI 与真实前端（框架建设见 [TICKET-067](TICKET-067.md)）。
 - [ ] 覆盖数据管理主旅程：空状态 → 初始化 → 抓取 → 写入缓存 → 统计更新 → 页面刷新后仍可见。
 - [ ] 覆盖数据刷新失败、部分失败和 `deferred > 0` 的用户可见反馈。
 - [ ] 对齐数据刷新长任务语义、前端超时及 `RefreshResult` 展示字段。
@@ -45,6 +45,8 @@
 - [ ] CI 失败时上传 Playwright trace、前后端日志和测试报告。
 - [ ] 使用临时 SQLite、临时 parquet 目录和确定性 Fixture Provider，保证场景隔离、可重复。
 - [ ] 增加少量真实腾讯 Provider 定时探针；该探针不作为普通 PR 的稳定门禁。
+
+其中契约、Playwright、隔离运行时和 CI 诊断产物的首版框架由 `TICKET-067` 一次性建设；框架交付后的场景增删和版本检查仍由本工单维护。
 
 ## 滚动检查步骤
 
